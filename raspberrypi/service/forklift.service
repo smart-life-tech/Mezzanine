@@ -1,0 +1,32 @@
+[Unit]
+Description=Forklift Ultrasonic Warning System - Distance Monitor and Horn Alert
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/forklift
+
+; Main execution
+ExecStart=/usr/bin/python3 /home/pi/forklift/app.py /home/pi/forklift/config.json
+
+; Auto-restart on failure (max 5 times in 60 seconds)
+Restart=on-failure
+RestartSec=10
+
+; Resource limits
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=forklift-alert
+
+; GPIO access (needed for pause button on GPIO17)
+ExecStartPre=/bin/bash -c 'usermod -a -G gpio pi 2>/dev/null || true'
+
+; Logging
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
