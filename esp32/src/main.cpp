@@ -54,12 +54,12 @@ const uint8_t num_sensors = 2;                     // Number of SR04 sensors (1 
 // ============================================
 
 // SR04 Sensor #1
-const uint8_t SR04_1_TRIG = 2;   // Trigger pin for sensor 1
-const uint8_t SR04_1_ECHO = 5;   // Echo pin for sensor 1 (5V input via divider)
+const uint8_t SR04_1_TRIG = 14;   // Trigger pin for sensor 1
+const uint8_t SR04_1_ECHO = 15;   // Echo pin for sensor 1 (5V input via divider)
 
 // SR04 Sensor #2
-const uint8_t SR04_2_TRIG = 4;   // Trigger pin for sensor 2
-const uint8_t SR04_2_ECHO = 6;   // Echo pin for sensor 2 (5V input via divider)
+const uint8_t SR04_2_TRIG = 16;   // Trigger pin for sensor 2
+const uint8_t SR04_2_ECHO = 32;   // Echo pin for sensor 2 (5V input via divider)
 
 // ============================================
 // GLOBAL VARIABLES
@@ -207,7 +207,7 @@ void setup() {
   if (num_sensors == 2) {
     digitalWrite(SR04_2_TRIG, LOW);
   }
-  
+  Serial.println("[Sensor] SR04 sensors configured.");
   // Register Ethernet event handlers
   WiFi.onEvent(onEvent);
   
