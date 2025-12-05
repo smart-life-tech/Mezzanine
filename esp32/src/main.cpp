@@ -10,8 +10,8 @@
  *   - Ethernet connectivity to Raspberry Pi via single Cat6 PoE cable
  * 
  * Sensor Pinout (ESP32-PoE GPIO Assignment):
- *   SR04 #1: TRIG=GPIO14, ECHO=GPIO15 (with voltage divider for 5V→3.3V)
- *   SR04 #2: TRIG=GPIO16, ECHO=GPIO32 (with voltage divider for 5V→3.3V)
+ *   SR04 #1: TRIG=GPIO14, ECHO=GPIO15 (3.3V logic levels)
+ *   SR04 #2: TRIG=GPIO16, ECHO=GPIO32 (3.3V logic levels)
  *   GND shared across all devices via PoE
  *   5V from PoE splitter powers ESP and SR04 sensors
  * 
@@ -307,21 +307,15 @@ void loop() {
  * 
  * 2. GPIO MAPPING (Olimex ESP32-PoE Configuration):
  *    - TRIG pins (GPIO14, GPIO16): Direct outputs to SR04
- *    - ECHO pins (GPIO15, GPIO32): 3.3V inputs (via divider)
+ *    - ECHO pins (GPIO15, GPIO32): Direct inputs from SR04
+ *    - All logic levels at 3.3V (no voltage conversion needed)
  *    - Other pins: Reserved for Ethernet controller
  * 
- * 3. VOLTAGE DIVIDER FOR ECHO PINS:
- *    SR04 ECHO outputs 5V, but ESP32 GPIO accepts max 3.3V.
- *    Use voltage divider:
- *      - 2kΩ resistor from SR04 ECHO to ESP GPIO
- *      - 1kΩ resistor from ESP GPIO to GND
- *    This drops 5V to ~3.3V at input.
- * 
- * 4. POWER DISTRIBUTION:
- *    All components powered from PoE splitter's 5V output:
- *    - Olimex ESP32-PoE: 5V/GND (from PoE)
- *    - SR04 #1: 5V/GND
- *    - SR04 #2: 5V/GND
+ * 3. POWER DISTRIBUTION:
+ *    All components powered from PoE splitter's 3.3V output:
+ *    - Olimex ESP32-PoE: 3.3V/GND (from PoE splitter)
+ *    - SR04 #1: 3.3V/GND
+ *    - SR04 #2: 3.3V/GND
  *    Common ground via PoE network.
  * 
  * 5. UDP NETWORKING:

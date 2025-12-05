@@ -18,7 +18,7 @@ Both the **Raspberry Pi 5** and the **ESP32 module** are powered entirely from *
 
 - **Workbench (Pi Side):** The Raspberry Pi 5 receives power through its **PoE HAT**, which extracts 48V+ from the Cat6 PoE cable and provides clean 5V to the Pi. The **Geekworm X1200 UPS** board supplies backup power during outages and maintains the system RTC.
 
-- **Mezzanine (ESP Side):** A **PoE splitter** (54V → 5V converter) located at the sensor end provides **5V for the ESP32-PoE** controller and **5V for both SR04 ultrasonic sensors**. This eliminates the need for separate power supplies at the mezzanine.
+- **Mezzanine (ESP Side):** A **PoE splitter** (48V → 5V) with **3.3V regulator** provides **3.3V for the ESP32-PoE** controller and **3.3V for both SR04 ultrasonic sensors**. This eliminates the need for separate power supplies at the mezzanine.
 
 - **Common Ground:** All components (Pi, ESP, sensors, 12V amp) share a **common ground via the PoE network**, ensuring signal integrity and safe operation.
 
@@ -186,8 +186,8 @@ Mezzanine/
 6. **Voltage Divider Setup** ⚠️:
    - SR04 ECHO outputs 5V, ESP GPIO accepts 3.3V max
    - **Wiring (per schematics.md)**:
-     - 2kΩ resistor: SR04 ECHO → ESP GPIO15 (or GPIO32 for sensor 2)
-     - 1kΩ resistor: ESP GPIO15/32 → GND
+     - 3.3V regulator: PoE splitter 5V → 3.3V (for ESP and sensors)
+     - SR04 sensors: Connected to 3.3V supply (direct logic levels)
    - This divider scales 5V → 3.3V safely
 
 7. **Mount at Mezzanine**:
