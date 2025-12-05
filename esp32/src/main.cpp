@@ -85,7 +85,7 @@ void onEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_ETH_CONNECTED:
       Serial.println("[ETH] Ethernet connected");
       break;
-    case ARDUINO_EVENT_ETH_GOT_IP:
+    case 2:
       Serial.println("[ETH] Ethernet got IP");
       Serial.print("[ETH] IP: ");
       Serial.println(ETH.localIP());
@@ -93,7 +93,7 @@ void onEvent(WiFiEvent_t event) {
       Serial.println(ETH.getHostname());
       eth_connected = true;
       break;
-    case ARDUINO_EVENT_ETH_LOST_IP:
+    case 3:
       Serial.println("[ETH] Ethernet lost IP");
       eth_connected = false;
       break;
