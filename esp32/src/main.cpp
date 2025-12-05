@@ -9,9 +9,9 @@
  *   - 1-2x HC-SR04 ultrasonic distance sensors
  *   - Ethernet connectivity to Raspberry Pi via single Cat6 PoE cable
  * 
- * Sensor Pinout (ESP32-PoE default GPIO):
- *   SR04 #1: TRIG=GPIO2,  ECHO=GPIO5 (with voltage divider for 5V→3.3V)
- *   SR04 #2: TRIG=GPIO4,  ECHO=GPIO6 (with voltage divider for 5V→3.3V)
+ * Sensor Pinout (ESP32-PoE GPIO Assignment):
+ *   SR04 #1: TRIG=GPIO14, ECHO=GPIO15 (with voltage divider for 5V→3.3V)
+ *   SR04 #2: TRIG=GPIO16, ECHO=GPIO32 (with voltage divider for 5V→3.3V)
  *   GND shared across all devices via PoE
  *   5V from PoE splitter powers ESP and SR04 sensors
  * 
@@ -305,9 +305,9 @@ void loop() {
  *    - No WiFi needed, uses Ethernet directly
  *    - ETH.begin() initializes with factory defaults
  * 
- * 2. GPIO MAPPING (Standard Olimex PoE):
- *    - TRIG pins (GPIO2, GPIO4): Direct outputs to SR04
- *    - ECHO pins (GPIO5, GPIO6): 3.3V inputs (via divider)
+ * 2. GPIO MAPPING (Olimex ESP32-PoE Configuration):
+ *    - TRIG pins (GPIO14, GPIO16): Direct outputs to SR04
+ *    - ECHO pins (GPIO15, GPIO32): 3.3V inputs (via divider)
  *    - Other pins: Reserved for Ethernet controller
  * 
  * 3. VOLTAGE DIVIDER FOR ECHO PINS:

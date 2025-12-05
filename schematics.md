@@ -2,13 +2,13 @@
 
 **System Overview:**
 - **Workbench Control Box**: Raspberry Pi 5, PoE HAT, UPS, USB audio adapter, 12V amplifier, horn speaker
-- **Mezzanine Sensor End**: ESP32-C6, PoE splitter, 2× SR04 ultrasonic sensors, voltage dividers
+- **Mezzanine Sensor End**: ESP32-PoE, PoE splitter, 2× SR04 ultrasonic sensors, voltage dividers
 - **Network**: Single Cat6 PoE cable connecting both ends
 
-**Key Pinouts (default configuration):**
+**Key Pinouts (GPIO Assignment):**
 - **Pause button**: Raspberry Pi GPIO17 (Pin 11 on GPIO header)
-- **SR04 #1**: TRIG → ESP GPIO2, ECHO → ESP GPIO5 (with 2k/1k voltage divider)
-- **SR04 #2**: TRIG → ESP GPIO4, ECHO → ESP GPIO6 (with 2k/1k voltage divider)
+- **SR04 #1**: TRIG → ESP GPIO14, ECHO → ESP GPIO15 (with 2k/1k voltage divider)
+- **SR04 #2**: TRIG → ESP GPIO16, ECHO → ESP GPIO32 (with 2k/1k voltage divider)
 
 ---
 
@@ -30,7 +30,7 @@ PoE Injector/Switch (48V PoE)
       │                │
    5V/3A            5V/2A
       │                │
-   Raspberry Pi    ESP32-C6
+   Raspberry Pi    ESP32-PoE
    + UPS           + SR04s
       │                │
       └────── Common Ground ──────┘
@@ -45,7 +45,7 @@ PoE Injector/Switch (48V PoE)
 
 ### **Mezzanine Power Distribution**
 - **PoE Splitter**: Passive converter, 48V input → 5V (2A) output
-- **5V Rail**: Powers ESP32-C6 and both SR04 sensors
+- **5V Rail**: Powers ESP32-PoE and both SR04 sensors
 - **Common Ground**: All mezzanine circuits tied to splitter GND (PoE cable shield)
 
 ---
@@ -478,7 +478,7 @@ FRONT PANEL
 
 ---
 
-## B. ESP32-C6 + Sensors (Mezzanine End) – Complete Wiring
+## B. ESP32-PoE + Sensors (Mezzanine End) – Complete Wiring
 
 ### **Section 1: PoE Splitter Installation**
 
@@ -541,15 +541,15 @@ PoE Distribution
 
 ---
 
-### **Section 2: ESP32-C6 GPIO Pinout Reference**
+### **Section 2: ESP32-PoE GPIO Pinout Reference**
 
 ```
-ESP32-C6-DevKitC-1 Relevant Pins:
+ESP32-PoE GPIO Assignment:
 
-GPIO2   ───────→ SR04 #1 TRIG (output, 3.3V)
-GPIO4   ───────→ SR04 #2 TRIG (output, 3.3V)
-GPIO5   ◄─────── SR04 #1 ECHO (input, 3.3V via divider)
-GPIO6   ◄─────── SR04 #2 ECHO (input, 3.3V via divider)
+GPIO14  ───────→ SR04 #1 TRIG (output, 3.3V)
+GPIO16  ───────→ SR04 #2 TRIG (output, 3.3V)
+GPIO15  ◄─────── SR04 #1 ECHO (input, 3.3V via divider)
+GPIO32  ◄─────── SR04 #2 ECHO (input, 3.3V via divider)
 5V      ◄─────── PoE Splitter 5V+ (power)
 GND     ◄─────── PoE Splitter GND (ground)
 ```
@@ -568,14 +568,14 @@ SENSOR ASSEMBLY
     │                   │
     │ VCC ──────────────┤ (direct 5V)
     │ GND ──────────────┤ (common ground)
-    │ TRIG ─────────────┤ → ESP GPIO2 (direct 3.3V)
+     │ TRIG ─────────────┤ → ESP GPIO14 (direct 3.3V)
     │ ECHO ─────────────┤
     │                   │
     └───────────────────┘
            │
       Voltage Divider:
       
-      ECHO (5V) ──[2kΩ]──┬──────→ ESP GPIO5 (3.3V input)
+      ECHO (5V) ──[2kΩ]──┬──────→ ESP GPIO15 (3.3V input)
                          │
                       [1kΩ]
                          │
@@ -598,24 +598,24 @@ SENSOR ASSEMBLY
    - Solder in series:
      - **2kΩ** connects SR04 ECHO to junction
      - **1kΩ** connects junction to GND
-     - **Junction output** goes to ESP GPIO5
+     - **Junction output** goes to ESP GPIO15
 
 2. **Connect SR04 Power**:
    - **SR04 #1 VCC** → **5V rail** from PoE splitter
    - **SR04 #1 GND** → **GND rail** from PoE splitter
 
 3. **Connect Trigger**:
-   - **SR04 #1 TRIG** → **ESP GPIO2** (direct, no resistor)
+   - **SR04 #1 TRIG** → **ESP GPIO14** (direct, no resistor)
    - Use **24 AWG wire**, keep run short (~50 cm max)
    - Single wire connection
 
 4. **Connect Echo & Divider**:
    - **SR04 #1 ECHO** → **Top of 2kΩ resistor** (splitter side)
-   - **Junction of 2kΩ and 1kΩ** → **ESP GPIO5**
+   - **Junction of 2kΩ and 1kΩ** → **ESP GPIO15**
    - **Bottom of 1kΩ** → **GND rail**
 
 5. **Verification**:
-   - With ESP powered off, measure GPIO5: Should read 0V (or close to it)
+   - With ESP powered off, measure GPIO15: Should read 0V (or close to it)
    - With ESP on and idle: Fluctuates 0V to 3.3V as it polls sensor
    - If stuck at 5V: Check divider resistors (may be missing or wrong value)
    - If stuck at 0V: Check GND connections
@@ -625,11 +625,11 @@ SENSOR ASSEMBLY
 ### **Section 4: SR04 #2 Sensor Wiring (if used)**
 
 **Identical to SR04 #1, but:**
-- **TRIG #2** → **ESP GPIO4** (not GPIO2)
-- **ECHO #2** → **Second voltage divider** (2kΩ + 1kΩ) → **ESP GPIO6**
+- **TRIG #2** → **ESP GPIO16** (not GPIO14)
+- **ECHO #2** → **Second voltage divider** (2kΩ + 1kΩ) → **ESP GPIO32**
 
 ```
-SR04 #2 ECHO ──[2kΩ]──┬──────→ ESP GPIO6
+SR04 #2 ECHO ──[2kΩ]──┬──────→ ESP GPIO32
                       │
                    [1kΩ]
                       │
@@ -651,10 +651,10 @@ SR04 #2 ECHO ──[2kΩ]──┬──────→ ESP GPIO6
 | **12V Amp Audio** | — | 3.5mm stereo in | From USB adapter |
 | **12V Amp Speaker** | — | L+/L− to Horn | 16 AWG speaker wire |
 | **12V Fan** | — | +12V (RED), GND (BLACK) | 18 AWG, always-on or switched |
-| **ESP GPIO2** | Output | SR04 #1 TRIG | 3.3V output, direct |
-| **ESP GPIO4** | Output | SR04 #2 TRIG | 3.3V output, direct |
-| **ESP GPIO5** | Input | SR04 #1 ECHO | 3.3V input (via divider) |
-| **ESP GPIO6** | Input | SR04 #2 ECHO | 3.3V input (via divider) |
+| **ESP GPIO14** | Output | SR04 #1 TRIG | 3.3V output, direct |
+| **ESP GPIO16** | Output | SR04 #2 TRIG | 3.3V output, direct |
+| **ESP GPIO15** | Input | SR04 #1 ECHO | 3.3V input (via divider) |
+| **ESP GPIO32** | Input | SR04 #2 ECHO | 3.3V input (via divider) |
 | **SR04 #1 VCC** | — | 5V rail (splitter) | Shared with SR04 #2 |
 | **SR04 #1 GND** | — | GND rail (splitter) | Shared with SR04 #2 |
 | **Voltage Dividers** | — | 2kΩ + 1kΩ (×2) | One divider per ECHO pin |
@@ -667,7 +667,7 @@ SR04 #2 ECHO ──[2kΩ]──┬──────→ ESP GPIO6
 |---------|-------------------|-----------|
 | **No UDP data reaching Pi** | WiFi not connected | Check SSID/password in ESP code, verify Pi IP |
 | **Intermittent distance readings** | Loose solder joint | Re-solder all GPIO and divider connections |
-| **5V reading on ESP GPIO5/6** | Missing voltage divider | Verify 2kΩ and 1kΩ resistors are present |
+| **5V reading on ESP GPIO15/32** | Missing voltage divider | Verify 2kΩ and 1kΩ resistors are present |
 | **Horn not making sound** | USB audio not detected | Run `aplay -L`, check alsamixer volume |
 | **Pause button doesn't work** | GPIO17 not pulled high | Verify wiring: COM→GND, NO→GPIO17 |
 | **UPS not charging** | Power connection loose | Check USB-C or 5V header firmly connected |

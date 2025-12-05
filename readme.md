@@ -1,6 +1,6 @@
 # 🚧 Forklift Ultrasonic Warning System
 
-**Raspberry Pi 5 + ESP32-C6 + SR04 Sensors**
+**Raspberry Pi 5 + ESP32-PoE + SR04 Sensors**
 **Real-time forklift fork-height detection with audio alert**
 
 ---
@@ -8,7 +8,7 @@
 ## 📘 Overview
 
 This system prevents forklifts from striking a mezzanine or overhead structure by continuously monitoring fork height using one or two HC-SR04 ultrasonic sensors.
-The sensors connect to an ESP32-C6 located at the mezzanine, which sends real-time distance data to a Raspberry Pi 5 over the network. When the fork height crosses a defined threshold, the Pi triggers a loud warning through a USB audio interface, 12V amplifier, and horn speaker.
+The sensors connect to an ESP32-PoE (Olimex Ethernet module) located at the mezzanine, which sends real-time distance data to a Raspberry Pi 5 over the network. When the fork height crosses a defined threshold, the Pi triggers a loud warning through a USB audio interface, 12V amplifier, and horn speaker.
 
 The entire system is housed in a structured, well-laid-out control enclosure at the workbench, while the sensing hardware sits remotely at the mezzanine end via PoE.
 
@@ -18,7 +18,7 @@ Both the **Raspberry Pi 5** and the **ESP32 module** are powered entirely from *
 
 - **Workbench (Pi Side):** The Raspberry Pi 5 receives power through its **PoE HAT**, which extracts 48V+ from the Cat6 PoE cable and provides clean 5V to the Pi. The **Geekworm X1200 UPS** board supplies backup power during outages and maintains the system RTC.
 
-- **Mezzanine (ESP Side):** A **PoE splitter** (54V → 5V converter) located at the sensor end provides **5V for the ESP32-C6** controller and **5V for both SR04 ultrasonic sensors**. This eliminates the need for separate power supplies at the mezzanine.
+- **Mezzanine (ESP Side):** A **PoE splitter** (54V → 5V converter) located at the sensor end provides **5V for the ESP32-PoE** controller and **5V for both SR04 ultrasonic sensors**. This eliminates the need for separate power supplies at the mezzanine.
 
 - **Common Ground:** All components (Pi, ESP, sensors, 12V amp) share a **common ground via the PoE network**, ensuring signal integrity and safe operation.
 
@@ -46,7 +46,7 @@ Both the **Raspberry Pi 5** and the **ESP32 module** are powered entirely from *
 
 ### **ESP Side (Mezzanine – Sensor End)**
 
-* ESP32-C6 module
+* ESP32-PoE module (Olimex, Ethernet-based, PoE-powered)
 * One or two HC-SR04 ultrasonic sensors
 * 54V → 5V PoE splitter
 * Cat6 PoE uplink from Pi
@@ -64,7 +64,7 @@ MEZZANINE END                                     WORKBENCH END
 
     SR04 Sensors                                 Raspberry Pi 5
          │                                            │
-         ├─ TRIG/ECHO ──────→ ESP32-C6               ├─ PoE HAT
+         ├─ TRIG/ECHO ───────→ ESP32-PoE               ├─ PoE HAT
          │                        │                  │
          └─ 5V/GND ──────→ PoE Splitter ────────────┘
                            (5V & 5V)                 (PoE)
@@ -72,7 +72,7 @@ MEZZANINE END                                     WORKBENCH END
                                └──── CAT6 ────────────┘
                                (Data + Power)
 
-    GPS: GPIO2, GPIO4, GPIO5, GPIO6 (SR04 pins)
+    GPS: GPIO14, GPIO16 (TRIG), GPIO15, GPIO32 (ECHO)
     Network: UDP Port 5005 (distance packets)
     Audio: Pi USB → 3.5mm → Amp → Horn (Threshold triggered)
     Control: GPIO17 (pause button), J2 (power button)
@@ -119,7 +119,7 @@ MEZZANINE END                                     WORKBENCH END
 Mezzanine/
 │
 ├── esp32/                                    # ESP32 Firmware Project (PlatformIO)
-│   ├── platformio.ini                        # Board config: ESP32-C6, Arduino framework
+│   ├── platformio.ini                        # Board config: esp32-poe, Arduino framework
 │   ├── src/
 │   │   └── main.cpp                          # Sensor reading + UDP transmission
 │   ├── include/
@@ -147,11 +147,11 @@ Mezzanine/
 
 ## ⚙️ Installation & Deployment
 
-### **1. ESP32-C6 Firmware Setup**
+### **1. ESP32-PoE Firmware Setup**
 
 #### Prerequisites
 - PlatformIO IDE or CLI installed
-- USB cable for flashing the ESP32-C6
+- USB cable for flashing the ESP32-PoE
 - Visual Studio Code with PlatformIO extension (recommended)
 
 #### Steps
@@ -169,7 +169,7 @@ Mezzanine/
    ```
 
 3. **Verify Board & Framework** in `platformio.ini`:
-   - Board: `esp32-c6-devkitc-1`
+   - Board: `esp32-poe`
    - Platform: `espressif32`
    - Framework: `arduino`
 
@@ -186,8 +186,8 @@ Mezzanine/
 6. **Voltage Divider Setup** ⚠️:
    - SR04 ECHO outputs 5V, ESP GPIO accepts 3.3V max
    - **Wiring (per schematics.md)**:
-     - 2kΩ resistor: SR04 ECHO → ESP GPIO5 (or GPIO6 for sensor 2)
-     - 1kΩ resistor: ESP GPIO5/6 → GND
+     - 2kΩ resistor: SR04 ECHO → ESP GPIO15 (or GPIO32 for sensor 2)
+     - 1kΩ resistor: ESP GPIO15/32 → GND
    - This divider scales 5V → 3.3V safely
 
 7. **Mount at Mezzanine**:
@@ -501,19 +501,19 @@ MEZZANINE END (near forklift approach)
 │    ├─ 5V out → ESP32 & sensors      │
 │    └─ GND out → common ground       │
 │                                      │
-│  ESP32-C6 Module                     │
+│  ESP32-PoE Module                    │
 │    ├─ Mounted on bracket below       │
-│    └─ GPIO pins available            │
+│    └─ GPIO: 14,16 (TRIG), 15,32 (ECHO)
 │                                      │
 │  SR04 Sensor #1                      │
 │    ├─ Mounted on steel L-bracket #1  │
 │    ├─ Facing downward at angle       │
-│    └─ TRIG→GPIO2, ECHO→GPIO5 (÷)    │
+│    └─ TRIG→GPIO14, ECHO→GPIO15 (÷)  │
 │                                      │
 │  SR04 Sensor #2 (optional)           │
 │    ├─ Mounted on steel L-bracket #2  │
 │    ├─ Positioned adjacent to #1      │
-│    └─ TRIG→GPIO4, ECHO→GPIO6 (÷)    │
+│    └─ TRIG→GPIO16, ECHO→GPIO32 (÷)  │
 │                                      │
 │  Voltage Dividers (for ECHO pins)    │
 │    ├─ 2kΩ + 1kΩ resistors × 2       │
