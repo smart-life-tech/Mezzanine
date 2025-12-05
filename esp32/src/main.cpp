@@ -1,42 +1,43 @@
 /*
- * Forklift Ultrasonic Warning System - ESP32-C6 Firmware
+ * Forklift Ultrasonic Warning System - Olimex ESP32-PoE Firmware
  * 
  * Function: Read HC-SR04 ultrasonic sensors and transmit distance data
- *           over UDP to Raspberry Pi 5 at the workbench.
+ *           over UDP to Raspberry Pi 5 at the workbench via Ethernet (PoE).
  * 
  * Hardware:
- *   - ESP32-C6 module (powered by PoE splitter at mezzanine)
+ *   - Olimex ESP32-PoE module (Ethernet-based, powered by PoE)
  *   - 1-2x HC-SR04 ultrasonic distance sensors
- *   - WiFi/Ethernet connectivity to Raspberry Pi
+ *   - Ethernet connectivity to Raspberry Pi via single Cat6 PoE cable
  * 
- * Sensor Pinout (ESP32-C6):
+ * Sensor Pinout (ESP32-PoE default GPIO):
  *   SR04 #1: TRIG=GPIO2,  ECHO=GPIO5 (with voltage divider for 5V→3.3V)
  *   SR04 #2: TRIG=GPIO4,  ECHO=GPIO6 (with voltage divider for 5V→3.3V)
- *   GND shared across all devices via PoE splitter
+ *   GND shared across all devices via PoE
  *   5V from PoE splitter powers ESP and SR04 sensors
  * 
  * Network:
- *   - Connects to WiFi SSID with configurable credentials
+ *   - Connects via Ethernet (built-in to Olimex board)
+ *   - PoE provides both power and network connectivity
  *   - Sends UDP packet to Raspberry Pi IP at port 5005
- *   - Packet format: "D1:xxx,D2:xxx\n"  (distance in cm, comma separated)
+ *   - Packet format: "D1:xxx,D2:xxx\n"
  *   - Measurement cycle: 100ms (every 100ms send new reading)
  * 
  * Power:
- *   - Powered entirely from PoE splitter's 5V output
+ *   - Powered entirely from PoE injector via single Cat6 cable
  *   - Ground shared with sensors and Pi via network common ground
  */
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ETH.h>
 #include <AsyncUDP.h>
 
 // ============================================
 // CONFIGURATION (Update these for your setup)
 // ============================================
 
-// WiFi credentials
-const char* ssid = "YOUR_SSID";                    // WiFi network name
-const char* password = "YOUR_PASSWORD";            // WiFi password
+// Ethernet (Olimex PoE built-in, no config needed)
+// The board auto-initializes with factory defaults
 
 // Raspberry Pi UDP target
 const char* udp_target_ip = "192.168.1.100";      // Pi IP address (update to your Pi IP)
@@ -66,10 +67,44 @@ const uint8_t SR04_2_ECHO = 6;   // Echo pin for sensor 2 (5V input via divider)
 
 AsyncUDP udp;
 unsigned long last_measurement_time = 0;
+bool eth_connected = false;
 
 // Distance readings in centimeters
 float distance_1_cm = 0.0;
 float distance_2_cm = 0.0;
+
+// ============================================
+// ETH EVENT HANDLERS
+// ============================================
+
+void onEvent(WiFiEvent_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_ETH_START:
+      Serial.println("[ETH] Ethernet started");
+      break;
+    case ARDUINO_EVENT_ETH_CONNECTED:
+      Serial.println("[ETH] Ethernet connected");
+      break;
+    case ARDUINO_EVENT_ETH_GOT_IP:
+      Serial.println("[ETH] Ethernet got IP");
+      Serial.print("[ETH] IP: ");
+      Serial.println(ETH.localIP());
+      Serial.print("[ETH] Hostname: ");
+      Serial.println(ETH.getHostname());
+      eth_connected = true;
+      break;
+    case ARDUINO_EVENT_ETH_LOST_IP:
+      Serial.println("[ETH] Ethernet lost IP");
+      eth_connected = false;
+      break;
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
+      Serial.println("[ETH] Ethernet disconnected");
+      eth_connected = false;
+      break;
+    default:
+      break;
+  }
+}
 
 // ============================================
 // FUNCTION: Read SR04 ultrasonic sensor
@@ -133,6 +168,10 @@ void sendUDPPacket(float dist1, float dist2) {
    * -1.0 values indicate sensor error/timeout
    */
   
+  if (!eth_connected) {
+    return;  // Don't send if not connected
+  }
+  
   char buffer[64];
   snprintf(buffer, sizeof(buffer), "D1:%.1f,D2:%.1f\n", dist1, dist2);
   
@@ -151,7 +190,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   
-  Serial.println("\n\n=== Forklift SR04 UDP System - ESP32-C6 ===");
+  Serial.println("\n\n=== Forklift SR04 UDP System - Olimex ESP32-PoE ===");
   Serial.println("Initializing...");
   
   // Configure GPIO pins for SR04 sensors
@@ -169,38 +208,41 @@ void setup() {
     digitalWrite(SR04_2_TRIG, LOW);
   }
   
-  // Connect to WiFi
-  Serial.print("Connecting to WiFi: ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
+  // Register Ethernet event handlers
+  WiFi.onEvent(onEvent);
   
-  int wifi_attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && wifi_attempts < 30) {
-    delay(500);
+  // Initialize Ethernet (PoE provides power + data)
+  Serial.println("[ETH] Starting Ethernet (PoE)...");
+  ETH.begin();  // Uses default PoE configuration for Olimex board
+  
+  // Wait for Ethernet connection (up to 20 seconds)
+  int eth_wait = 0;
+  while (!eth_connected && eth_wait < 200) {
+    delay(100);
     Serial.print(".");
-    wifi_attempts++;
+    eth_wait++;
   }
   
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi connected!");
-    Serial.print("ESP32 IP: ");
-    Serial.println(WiFi.localIP());
+  if (eth_connected) {
+    Serial.println("\n[ETH] Ethernet connected!");
+    Serial.print("[ETH] IP: ");
+    Serial.println(ETH.localIP());
   } else {
-    Serial.println("\nWiFi connection failed!");
-    Serial.println("Retrying in 10 seconds...");
+    Serial.println("\n[ETH] Ethernet connection timeout!");
+    Serial.println("[ETH] Retrying in 10 seconds...");
   }
   
-  // Initialize UDP
+  // Initialize UDP listener
   if (udp.listen(5006)) {
-    Serial.println("UDP listener started on port 5006");
+    Serial.println("[UDP] Listener started on port 5006");
   }
   
-  Serial.print("Target Pi IP: ");
+  Serial.print("[UDP] Target Pi IP: ");
   Serial.print(udp_target_ip);
   Serial.print(":");
   Serial.println(udp_target_port);
   
-  Serial.println("System ready. Beginning measurements...\n");
+  Serial.println("[System] Ready. Beginning measurements...\n");
   
   last_measurement_time = millis();
 }
@@ -226,23 +268,27 @@ void loop() {
     }
     
     // Send UDP packet to Pi
-    if (WiFi.status() == WL_CONNECTED) {
+    if (eth_connected) {
       sendUDPPacket(distance_1_cm, distance_2_cm);
       
       // Debug output (every 10 cycles = 1 second)
       static uint8_t debug_counter = 0;
       if (++debug_counter >= 10) {
         debug_counter = 0;
-        Serial.print("D1: ");
+        Serial.print("[Sensor] D1: ");
         Serial.print(distance_1_cm);
         Serial.print(" cm | D2: ");
         Serial.print(distance_2_cm);
         Serial.println(" cm");
       }
     } else {
-      // WiFi disconnected, attempt reconnect
-      Serial.println("WiFi disconnected. Attempting reconnect...");
-      WiFi.reconnect();
+      // Ethernet disconnected, try to reconnect
+      static uint8_t recon_counter = 0;
+      if (++recon_counter >= 100) {  // Try every 10 seconds
+        recon_counter = 0;
+        Serial.println("[ETH] Attempting reconnect...");
+        ETH.begin();
+      }
     }
   }
   
@@ -251,32 +297,49 @@ void loop() {
 }
 
 /*
- * NOTES:
+ * NOTES FOR OLIMEX ESP32-PoE:
  * 
- * 1. VOLTAGE DIVIDER FOR ECHO PINS:
- *    SR04 ECHO outputs 5V, but ESP32-C6 GPIO accepts max 3.3V.
- *    Use a voltage divider:
- *      - 2kΩ resistor from SR04 ECHO to ESP GPIO (e.g., GPIO5)
+ * 1. ETHERNET CONFIGURATION:
+ *    - Board: Olimex ESP32-PoE has built-in Ethernet MAC
+ *    - PoE: Powered by single Cat6 cable with PoE injector
+ *    - No WiFi needed, uses Ethernet directly
+ *    - ETH.begin() initializes with factory defaults
+ * 
+ * 2. GPIO MAPPING (Standard Olimex PoE):
+ *    - TRIG pins (GPIO2, GPIO4): Direct outputs to SR04
+ *    - ECHO pins (GPIO5, GPIO6): 3.3V inputs (via divider)
+ *    - Other pins: Reserved for Ethernet controller
+ * 
+ * 3. VOLTAGE DIVIDER FOR ECHO PINS:
+ *    SR04 ECHO outputs 5V, but ESP32 GPIO accepts max 3.3V.
+ *    Use voltage divider:
+ *      - 2kΩ resistor from SR04 ECHO to ESP GPIO
  *      - 1kΩ resistor from ESP GPIO to GND
- *    This drops 5V to ~3.3V at the input.
+ *    This drops 5V to ~3.3V at input.
  * 
- * 2. POWER DISTRIBUTION:
+ * 4. POWER DISTRIBUTION:
  *    All components powered from PoE splitter's 5V output:
- *    - ESP32: 5V/GND
+ *    - Olimex ESP32-PoE: 5V/GND (from PoE)
  *    - SR04 #1: 5V/GND
- *    - SR04 #2: 5V/GND (if used)
+ *    - SR04 #2: 5V/GND
  *    Common ground via PoE network.
  * 
- * 3. WiFi SETUP:
- *    Update ssid and password to match your network.
- *    Update udp_target_ip to your Raspberry Pi's IP address.
+ * 5. UDP NETWORKING:
+ *    - Target: Raspberry Pi at configured IP (e.g., 192.168.1.100)
+ *    - Port: 5005 (UDP)
+ *    - Format: "D1:45.3,D2:67.8\n"
+ *    - Interval: 100ms (10 readings/sec)
  * 
- * 4. MEASUREMENT ACCURACY:
- *    - 100ms measurement cycle ensures smooth data flow
- *    - 10 readings/second is sufficient for forklift tracking
- *    - Timeout of 30ms handles no-echo or out-of-range (>5m)
+ * 6. TROUBLESHOOTING TG1WDT_SYS_RESET:
+ *    If you see watchdog resets:
+ *    a) Check Ethernet cable is connected to PoE injector
+ *    b) Verify PoE injector is powered
+ *    c) Try ETH.begin() with alternative configurations
+ *    d) Check serial monitor for Ethernet event messages
  * 
- * 5. DEBUGGING:
- *    Serial output at 115200 baud for monitoring via USB.
- *    Set `build_flags = -DCORE_DEBUG_LEVEL=2` in platformio.ini
+ * 7. DEBUGGING:
+ *    Serial output at 115200 baud shows:
+ *    - Ethernet connection status
+ *    - Distance readings every second
+ *    - UDP transmission status
  */
