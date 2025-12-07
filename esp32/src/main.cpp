@@ -40,7 +40,7 @@
 // The board auto-initializes with factory defaults
 
 // Raspberry Pi UDP target
-const char *udp_target_ip = "192.168.1.100"; // Pi IP address (update to your Pi IP)
+const char *udp_target_ip = "192.168.0.13"; // Pi IP address (update to your Pi IP)
 const uint16_t udp_target_port = 5005;       // UDP port Pi listens on
 
 // Measurement cycle timing

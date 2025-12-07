@@ -52,7 +52,7 @@ except ImportError:
 class Config:
     """Load and manage system configuration."""
     
-    def __init__(self, config_path="/home/pi/forklift/config.json"):
+    def __init__(self, config_path="/home/mark/Mezzanine/raspberrypi/config.json"):
         self.config_path = config_path
         self.data = self._load_config()
     
@@ -62,7 +62,7 @@ class Config:
             "udp_listen_port": 5005,
             "distance_threshold_cm": 80,
             "pause_duration_seconds": 120,
-            "alert_wav_path": "/home/pi/forklift/alert.wav",
+            "alert_wav_path": "/home/mark/Mezzanine/raspberrypi/alert.wav",
             "pause_button_gpio": 17,
             "min_interval_between_alerts_sec": 1.0,
         }
@@ -317,7 +317,7 @@ class ForkliftAlertSystem:
     Main control system for fork height monitoring and alerting.
     """
     
-    def __init__(self, config_path="/home/pi/forklift/config.json"):
+    def __init__(self, config_path="/home/mark/Mezzanine/raspberrypi/config.json"):
         print("=" * 60)
         print("Forklift Ultrasonic Warning System - Raspberry Pi")
         print("=" * 60)
@@ -345,6 +345,7 @@ class ForkliftAlertSystem:
         # Register signal handlers for clean shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
+        self.alert.play_alert()
     
     def _signal_handler(self, signum, frame):
         """Handle Ctrl-C and kill signals for clean shutdown."""
@@ -431,7 +432,7 @@ class ForkliftAlertSystem:
 if __name__ == "__main__":
     try:
         # Default config path; can be overridden
-        config_file = "/home/pi/forklift/config.json"
+        config_file = "/home/mark/Mezzanine/raspberrypi/config.json"
         if len(sys.argv) > 1:
             config_file = sys.argv[1]
         
