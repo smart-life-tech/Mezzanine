@@ -317,6 +317,11 @@ void loop()
     }
     else
     {
+      Serial.print("[Sensor] D1: ");
+      Serial.print(distance_1_cm);
+      Serial.print(" cm | D2: ");
+      Serial.print(distance_2_cm);
+      Serial.println(" cm");
       // Ethernet disconnected, try to reconnect
       static uint8_t recon_counter = 0;
       if (++recon_counter >= 100)
@@ -325,11 +330,6 @@ void loop()
         Serial.println("[ETH] Attempting reconnect...");
         ETH.begin();
       }
-      Serial.print("[Sensor] D1: ");
-      Serial.print(distance_1_cm);
-      Serial.print(" cm | D2: ");
-      Serial.print(distance_2_cm);
-      Serial.println(" cm");
     }
   }
 
