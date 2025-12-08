@@ -28,7 +28,7 @@
  * Power:
  *   - Powered entirely from PoE switch via single Cat6 cable
  *   - Ground shared with sensors and Pi via network common ground
- * 
+ *
  * IMPORTANT: For second ESP32 board, change line 42 to:
  *   IPAddress local_IP(192, 168, 10, 21);  // ESP32 #2
  */
@@ -44,20 +44,20 @@
 
 // NO-ROUTER NETWORK CONFIGURATION
 // Static IP configuration (required when no DHCP/router present)
-IPAddress local_IP(192, 168, 10, 20);      // ESP32 static IP (use .21 for second board)
-IPAddress gateway(192, 168, 10, 1);        // Pi acts as gateway
-IPAddress subnet(255, 255, 255, 0);        // Subnet mask
-IPAddress primaryDNS(192, 168, 10, 1);     // Pi as DNS (optional)
-IPAddress secondaryDNS(0, 0, 0, 0);        // No secondary DNS
+IPAddress local_IP(192, 168, 10, 20);  // ESP32 static IP (use .21 for second board)
+IPAddress gateway(192, 168, 10, 1);    // Pi acts as gateway
+IPAddress subnet(255, 255, 255, 0);    // Subnet mask
+IPAddress primaryDNS(192, 168, 10, 1); // Pi as DNS (optional)
+IPAddress secondaryDNS(0, 0, 0, 0);    // No secondary DNS
 
 // WiFi Fallback (if Ethernet fails)
-const char* wifi_ssid = "VM0683147";        // WiFi network name
-const char* wifi_password = "gbyvzrWjb6gk"; // WiFi password
-const bool enable_wifi_fallback = true;         // Set true to enable WiFi fallback
+const char *wifi_ssid = "VM0683147";        // WiFi network name
+const char *wifi_password = "gbyvzrWjb6gk"; // WiFi password
+const bool enable_wifi_fallback = true;     // Set true to enable WiFi fallback
 
 // Raspberry Pi UDP target
 const char *udp_target_ip = "192.168.10.1"; // Pi IP address (NO-ROUTER: Pi = 192.168.10.1)
-const uint16_t udp_target_port = 5005;       // UDP port Pi listens on
+const uint16_t udp_target_port = 5005;      // UDP port Pi listens on
 
 // Measurement cycle timing
 const unsigned long measurement_interval_ms = 100; // 100ms = 10 readings per second
@@ -85,7 +85,7 @@ AsyncUDP udp;
 unsigned long last_measurement_time = 0;
 bool eth_connected = false;
 bool wifi_connected = false;
-bool network_connected = false;  // True if either ETH or WiFi works
+bool network_connected = false; // True if either ETH or WiFi works
 
 // Distance readings in centimeters
 float distance_1_cm = 0.0;
@@ -94,7 +94,50 @@ float distance_2_cm = 0.0;
 // ============================================
 // NETWORK EVENT HANDLERS
 // ============================================
+#define ETH_PHY_TYPE ETH_PHY_LAN8720
+#define ETH_PHY_POWER 12
+#define ETH_PHY_MDC 23
+#define ETH_PHY_MDIO 18
+#define ETH_CLK_MODE ETH_CLOCK_GPIO0_IN // external 50MHz crystal
+void setupEthernet()
+{
+  Serial.println("[ETH] Initializing Olimex ESP32-PoE Ethernet...");
 
+  // Enable PHY power
+  pinMode(ETH_PHY_POWER, OUTPUT);
+  digitalWrite(ETH_PHY_POWER, 1);
+  delay(100);
+
+  // Start Ethernet PHY
+  if (!ETH.begin(ETH_PHY_TYPE, ETH_PHY_POWER, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLK_MODE))
+  {
+    Serial.println("[ETH] ERROR: ETH.begin() failed!");
+  }
+
+  // Apply static IP AFTER Ethernet is alive
+  delay(500);
+  ETH.config(local_IP, gateway, subnet, gateway, secondaryDNS);
+
+  Serial.println("[ETH] Waiting for link...");
+  int retries = 0;
+  while (!ETH.linkUp() && retries < 50)
+  {
+    Serial.print(".");
+    delay(200);
+    retries++;
+  }
+
+  if (ETH.linkUp())
+  {
+    Serial.println("\n[ETH] ✓ LINK UP!");
+    Serial.print("[ETH] IP: ");
+    Serial.println(ETH.localIP());
+  }
+  else
+  {
+    Serial.println("\n[ETH] ✗ LINK FAILED (Check cable/switch)");
+  }
+}
 void onEvent(WiFiEvent_t event)
 {
   switch (event)
@@ -116,14 +159,14 @@ void onEvent(WiFiEvent_t event)
   case 3:
     Serial.println("[ETH] Ethernet lost IP");
     eth_connected = false;
-    network_connected = wifi_connected;  // Still connected if WiFi works
+    network_connected = wifi_connected; // Still connected if WiFi works
     break;
   case ARDUINO_EVENT_ETH_DISCONNECTED:
     Serial.println("[ETH] Ethernet disconnected");
     eth_connected = false;
-    network_connected = wifi_connected;  // Still connected if WiFi works
+    network_connected = wifi_connected; // Still connected if WiFi works
     break;
-    
+
   // WiFi Events
   case 10:
     Serial.println("[WiFi] WiFi started");
@@ -141,14 +184,14 @@ void onEvent(WiFiEvent_t event)
   case ARDUINO_EVENT_WIFI_STA_LOST_IP:
     Serial.println("[WiFi] WiFi lost IP");
     wifi_connected = false;
-    network_connected = eth_connected;  // Still connected if ETH works
+    network_connected = eth_connected; // Still connected if ETH works
     break;
   case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
     Serial.println("[WiFi] WiFi disconnected");
     wifi_connected = false;
-    network_connected = eth_connected;  // Still connected if ETH works
+    network_connected = eth_connected; // Still connected if ETH works
     break;
-    
+
   default:
     break;
   }
@@ -277,33 +320,32 @@ void setup()
   Serial.println(local_IP);
   Serial.print("[ETH] Gateway (Pi): ");
   Serial.println(gateway);
-  
+
   // Configure static IP BEFORE starting Ethernet
-  if (!ETH.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+  if (!ETH.begin(ETH_PHY_TYPE, ETH_PHY_POWER, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLK_MODE))
   {
-    Serial.println("[ETH] Static IP configuration failed!");
+    Serial.println("[ETH] ERROR: ETH.begin() failed!");
   }
-  else
-  {
-    Serial.println("[ETH] Static IP configured successfully");
-  }
-  
-  // Start Ethernet with Olimex ESP32-PoE specific settings
-  // ETH_PHY_LAN8720: PHY type for Olimex board
-  // ETH_CLOCK_GPIO17_OUT: Clock configuration for Olimex
-  if (!ETH.begin(0, -1, 23, 18, ETH_PHY_LAN8720, ETH_CLOCK_GPIO17_OUT))
-  {
-    Serial.println("[ETH] Ethernet hardware initialization failed!");
-  }
+
+  // Apply static IP AFTER Ethernet is alive
+  delay(500);
+  ETH.config(local_IP, gateway, subnet, gateway, secondaryDNS);
 
   // Wait for Ethernet link and connection (up to 15 seconds)
   Serial.println("[ETH] Waiting for link...");
   int eth_wait = 0;
   while (!eth_connected && eth_wait < 150)
   {
-    delay(100);
-    if (eth_wait % 10 == 0) Serial.print(".");
+    delay(200);
+    if (eth_wait % 10 == 0)
+      Serial.print(".");
     eth_wait++;
+    if eth_wait
+      > 50
+      {
+        Serial.println("\n[ETH] Still waiting for link...");
+        break;
+      }
   }
 
   if (eth_connected)
@@ -322,17 +364,17 @@ void setup()
   else
   {
     Serial.println("\n[ETH] Ethernet connection failed!");
-    
+
     // Try WiFi fallback if enabled
     if (enable_wifi_fallback)
     {
       Serial.println("[WiFi] Attempting WiFi fallback...");
       Serial.print("[WiFi] Connecting to: ");
       Serial.println(wifi_ssid);
-      
+
       WiFi.mode(WIFI_STA);
       WiFi.begin(wifi_ssid, wifi_password);
-      
+
       int wifi_wait = 0;
       while (!wifi_connected && wifi_wait < 200)
       {
@@ -340,7 +382,7 @@ void setup()
         Serial.print(".");
         wifi_wait++;
       }
-      
+
       if (wifi_connected)
       {
         Serial.println("\n[WiFi] WiFi connected!");
@@ -370,7 +412,7 @@ void setup()
   Serial.print(udp_target_ip);
   Serial.print(":");
   Serial.println(udp_target_port);
-  
+
   if (network_connected)
   {
     Serial.println("[System] ✓ Network connected - Ready!");
