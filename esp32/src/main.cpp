@@ -118,7 +118,7 @@ void setupEthernet()
 
   // Apply static IP AFTER Ethernet is alive
   delay(500);
-  ETH.config(local_IP, gateway, subnet, gateway, secondaryDNS);
+  //ETH.config(local_IP, gateway, subnet, gateway, secondaryDNS);
 
   Serial.println("[ETH] Waiting for link...");
   int retries = 0;
