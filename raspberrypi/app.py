@@ -262,10 +262,17 @@ class UDPListener:
     
     def _receive_loop(self):
         """Thread: receive UDP packets."""
+        last_source_ip = None
         while self.running:
             try:
                 data, addr = self.socket.recvfrom(1024)
                 self.last_update_time = time.time()
+                
+                # Log source IP when it changes (helpful for NO-ROUTER debugging)
+                source_ip = addr[0]
+                if source_ip != last_source_ip:
+                    print(f"[UDP] Receiving from ESP32 at {source_ip}:{addr[1]}")
+                    last_source_ip = source_ip
                 
                 # Parse packet: "D1:xxx.x,D2:yyy.y\n"
                 message = data.decode('utf-8', errors='ignore').strip()
