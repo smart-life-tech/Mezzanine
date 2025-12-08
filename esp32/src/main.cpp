@@ -53,7 +53,7 @@ IPAddress secondaryDNS(0, 0, 0, 0);        // No secondary DNS
 // WiFi Fallback (if Ethernet fails)
 const char* wifi_ssid = "VM0683147";        // WiFi network name
 const char* wifi_password = "gbyvzrWjb6gk"; // WiFi password
-const bool enable_wifi_fallback = false;         // Set true to enable WiFi fallback
+const bool enable_wifi_fallback = true;         // Set true to enable WiFi fallback
 
 // Raspberry Pi UDP target
 const char *udp_target_ip = "192.168.10.1"; // Pi IP address (NO-ROUTER: Pi = 192.168.10.1)
