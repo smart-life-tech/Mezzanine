@@ -340,12 +340,11 @@ void setup()
     if (eth_wait % 10 == 0)
       Serial.print(".");
     eth_wait++;
-    if eth_wait
-      > 50
-      {
-        Serial.println("\n[ETH] Still waiting for link...");
-        break;
-      }
+    if (eth_wait > 50)
+    {
+      Serial.println("\n[ETH] Still waiting for link...");
+      break;
+    }
   }
 
   if (eth_connected)
