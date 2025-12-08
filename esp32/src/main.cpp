@@ -125,7 +125,7 @@ void onEvent(WiFiEvent_t event)
     break;
     
   // WiFi Events
-  case ARDUINO_EVENT_WIFI_STA_START:
+  case 10:
     Serial.println("[WiFi] WiFi started");
     break;
   case ARDUINO_EVENT_WIFI_STA_CONNECTED:
