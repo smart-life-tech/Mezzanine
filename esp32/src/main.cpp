@@ -283,27 +283,40 @@ void setup()
   {
     Serial.println("[ETH] Static IP configuration failed!");
   }
+  else
+  {
+    Serial.println("[ETH] Static IP configured successfully");
+  }
   
-  ETH.begin(); // Uses default PoE configuration for Olimex board
+  // Start Ethernet with Olimex ESP32-PoE specific settings
+  // ETH_PHY_LAN8720: PHY type for Olimex board
+  // ETH_CLOCK_GPIO17_OUT: Clock configuration for Olimex
+  if (!ETH.begin(0, -1, 23, 18, ETH_PHY_LAN8720, ETH_CLOCK_GPIO17_OUT))
+  {
+    Serial.println("[ETH] Ethernet hardware initialization failed!");
+  }
 
-  // Wait for Ethernet connection (up to 10 seconds)
+  // Wait for Ethernet link and connection (up to 15 seconds)
+  Serial.println("[ETH] Waiting for link...");
   int eth_wait = 0;
-  while (!eth_connected && eth_wait < 100)
+  while (!eth_connected && eth_wait < 150)
   {
     delay(100);
-    Serial.print(".");
+    if (eth_wait % 10 == 0) Serial.print(".");
     eth_wait++;
   }
 
   if (eth_connected)
   {
-    Serial.println("\n[ETH] Ethernet connected!");
+    Serial.println("\n[ETH] ✓ Ethernet connected!");
     Serial.print("[ETH] IP: ");
     Serial.println(ETH.localIP());
     Serial.print("[ETH] Gateway: ");
     Serial.println(ETH.gatewayIP());
     Serial.print("[ETH] Subnet: ");
     Serial.println(ETH.subnetMask());
+    Serial.print("[ETH] MAC: ");
+    Serial.println(ETH.macAddress());
     network_connected = true;
   }
   else
@@ -417,27 +430,19 @@ void loop()
     }
     else
     {
-      // No network connection, try to reconnect
+      // No network connection - show error message periodically
       static uint8_t recon_counter = 0;
       if (++recon_counter >= 100)
-      { // Try every 10 seconds
+      { // Print error every 10 seconds
         recon_counter = 0;
-        Serial.println("[Network] Attempting reconnect...");
-        
-        // Try Ethernet first
-        if (!eth_connected)
-        {
-          Serial.println("[ETH] Reconnecting...");
-          ETH.begin();
-          delay(2000);
-        }
-        
-        // Try WiFi if Ethernet failed and WiFi enabled
-        if (!eth_connected && enable_wifi_fallback && !wifi_connected)
-        {
-          Serial.println("[WiFi] Reconnecting...");
-          WiFi.begin(wifi_ssid, wifi_password);
-        }
+        Serial.println("[ERROR] No network connection!");
+        Serial.println("[ERROR] Check Ethernet cable and PoE power");
+        Serial.println("[ERROR] Verify Pi is at 192.168.10.1");
+        Serial.print("[Sensor] D1: ");
+        Serial.print(distance_1_cm);
+        Serial.print(" cm | D2: ");
+        Serial.print(distance_2_cm);
+        Serial.println(" cm (NOT SENT)");
       }
     }
   }
