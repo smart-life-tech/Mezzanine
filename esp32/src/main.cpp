@@ -109,10 +109,12 @@ void setupEthernet()
   delay(100);
 
   // Start Ethernet PHY
-  if (!ETH.begin(ETH_PHY_TYPE, ETH_PHY_POWER, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLK_MODE))
-  {
-    Serial.println("[ETH] ERROR: ETH.begin() failed!");
-  }
+  // if (!ETH.begin(ETH_PHY_TYPE, ETH_PHY_POWER, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLK_MODE))
+  // {
+  //   Serial.println("[ETH] ERROR: ETH.begin() failed!");
+  // }
+  Serial.print("Starting ETH interface...");
+  ETH.begin();
 
   // Apply static IP AFTER Ethernet is alive
   delay(500);
