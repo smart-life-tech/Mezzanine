@@ -184,9 +184,11 @@ void sendUDPPacket(float dist1, float dist2)
   char buffer[64];
   snprintf(buffer, sizeof(buffer), "D1:%.1f,D2:%.1f\n", dist1, dist2);
 
-  // Send via UDP
+  // Send via UDP - Parse IP string and send
+  IPAddress targetIP;
+  targetIP.fromString(udp_target_ip);
   udp.writeTo((uint8_t *)buffer, strlen(buffer),
-              IPAddress(192, 168, 1, 100), // Update to your Pi IP
+              targetIP,
               udp_target_port);
 }
 
