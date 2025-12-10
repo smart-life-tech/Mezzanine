@@ -43,6 +43,13 @@
 const char *udp_target_ip = "192.168.10.1"; // Pi IP address (update to your Pi IP)
 const uint16_t udp_target_port = 5005;       // UDP port Pi listens on
 
+// Static IP Configuration (NO-ROUTER setup)
+IPAddress local_IP(192, 168, 10, 20);      // ESP32 static IP
+IPAddress gateway(192, 168, 10, 1);        // Pi acts as gateway
+IPAddress subnet(255, 255, 255, 0);        // Subnet mask
+IPAddress primaryDNS(8, 8, 8, 8);          // Optional
+IPAddress secondaryDNS(8, 8, 4, 4);        // Optional
+
 // Measurement cycle timing
 const unsigned long measurement_interval_ms = 100; // 100ms = 10 readings per second
 
@@ -222,14 +229,35 @@ void setup()
     digitalWrite(SR04_2_TRIG, LOW);
   }
   Serial.println("[Sensor] SR04 sensors configured.");
+  
   // Register Ethernet event handlers
   WiFi.onEvent(onEvent);
 
-  // Initialize Ethernet (PoE provides power + data)
-  Serial.println("[ETH] Starting Ethernet (PoE)...");
-  ETH.begin(); // Uses default PoE configuration for Olimex board
+  // Initialize Ethernet with STATIC IP (NO-ROUTER setup)
+  Serial.println("[ETH] Starting Ethernet (PoE) with STATIC IP...");
+  Serial.print("[ETH] Static IP: ");
+  Serial.println(local_IP);
+  Serial.print("[ETH] Gateway (Pi): ");
+  Serial.println(gateway);
+  
+  // Configure static IP BEFORE starting Ethernet
+  if (!ETH.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+  {
+    Serial.println("[ETH] Static IP configuration failed!");
+  }
+  else
+  {
+    Serial.println("[ETH] Static IP configured successfully");
+  }
+  
+  // Start Ethernet with Olimex ESP32-PoE specific settings
+  if (!ETH.begin(0, -1, 23, 18, ETH_PHY_LAN8720, ETH_CLOCK_GPIO17_OUT))
+  {
+    Serial.println("[ETH] Ethernet hardware initialization failed!");
+  }
 
-  // Wait for Ethernet connection (up to 20 seconds)
+  // Wait for Ethernet link and connection (up to 15 seconds)
+  Serial.println("[ETH] Waiting for link...");
   int eth_wait = 0;
   while (!eth_connected && eth_wait < 200)
   {
