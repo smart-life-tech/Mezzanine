@@ -14,6 +14,6 @@
     "alert_wav_path": "Full path to horn warning WAV audio file",
     "pause_button_gpio": "BCM GPIO pin number for pause button (wired to GPIO17 in schematics)",
     "min_interval_between_alerts_sec": "Minimum seconds between consecutive alerts (prevents alert spam)",
-    "audio_output": "Audio output method: 'usb' for USB audio adapter, 'gpio_pwm' for Pi 5 GPIO 12/13 PWM audio (requires dtoverlay=pwm-2chan in /boot/firmware/config.txt)"
+    "audio_output": "Audio output method: 'usb' for USB audio adapter, 'gpio_pwm' for Pi 5 GPIO 12/13 PWM audio (requires dtoverlay=pwm-2chan in /boot/firmware/config.txt), 'headphone_jack' for onboard 3.5mm headphone jack/speaker"
   }
 }

@@ -65,7 +65,7 @@ class Config:
             "alert_wav_path": "/home/mark/Mezzanine/raspberrypi/alert.wav",
             "pause_button_gpio": 17,
             "min_interval_between_alerts_sec": 1.0,
-            "audio_output": "usb",  # Options: "usb" or "gpio_pwm"
+            "audio_output": "usb",  # Options: "usb", "gpio_pwm", or "headphone_jack"
         }
         
         try:
@@ -104,7 +104,9 @@ class AudioAlert:
         
         Args:
             wav_path: Path to WAV file
-            output_mode: "usb" for USB audio adapter, "gpio_pwm" for Pi 5 GPIO 12/13 PWM audio
+            output_mode: "usb" for USB audio adapter, 
+                        "gpio_pwm" for Pi 5 GPIO 12/13 PWM audio,
+                        "headphone_jack" for onboard 3.5mm jack/speaker
         """
         self.wav_path = wav_path
         self.last_alert_time = 0
@@ -114,6 +116,8 @@ class AudioAlert:
         if self.output_mode == "gpio_pwm":
             print("[Alert] Using GPIO PWM audio output (GPIO 12/13)")
             print("[Alert] Ensure /boot/firmware/config.txt has: dtoverlay=pwm-2chan")
+        elif self.output_mode == "headphone_jack":
+            print("[Alert] Using onboard headphone jack/speaker")
         else:
             print("[Alert] Using USB audio adapter")
     
@@ -152,6 +156,10 @@ class AudioAlert:
                 # For GPIO PWM audio, specify the headphones device
                 # On Pi 5 with PWM overlay, this routes to GPIO 12/13
                 cmd = ["aplay", "-D", "plughw:Headphones", self.wav_path]
+            elif self.output_mode == "headphone_jack":
+                # For onboard 3.5mm jack/speaker - use the Headphones device
+                # This is the built-in audio output on Raspberry Pi
+                cmd = ["aplay", "-D", "plughw:Headphones", self.wav_path]
             else:
                 # USB audio - use default device (first available sound card)
                 cmd = ["aplay", self.wav_path]
@@ -164,7 +172,14 @@ class AudioAlert:
                 stderr=subprocess.DEVNULL
             )
             self.last_alert_time = current_time
-            mode_str = "GPIO PWM" if self.output_mode == "gpio_pwm" else "USB"
+            
+            # Set display name for mode
+            mode_names = {
+                "gpio_pwm": "GPIO PWM",
+                "headphone_jack": "Headphone Jack",
+                "usb": "USB"
+            }
+            mode_str = mode_names.get(self.output_mode, "USB")
             print(f"[Alert] Horn triggered ({mode_str}) at {datetime.now().strftime('%H:%M:%S')}")
             return True
         except FileNotFoundError:
