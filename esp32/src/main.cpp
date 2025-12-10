@@ -28,27 +28,26 @@
  */
 
 #include <Arduino.h>
-#include <WiFi.h>
 #include <ETH.h>
-#include <AsyncUDP.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
 
 // ============================================
 // CONFIGURATION (Update these for your setup)
 // ============================================
 
-// Ethernet (Olimex PoE built-in, no config needed)
-// The board auto-initializes with factory defaults
-
 // Raspberry Pi UDP target
-const char *udp_target_ip = "192.168.10.1"; // Pi IP address (update to your Pi IP)
+const char *udp_target_ip = "192.168.10.1"; // Pi IP address
 const uint16_t udp_target_port = 5005;       // UDP port Pi listens on
 
 // Static IP Configuration (NO-ROUTER setup)
-IPAddress local_IP(192, 168, 10, 20);      // ESP32 static IP
+IPAddress local_IP(192, 168, 10, 20);      // ESP32 static IP (change to .21 for board #2)
 IPAddress gateway(192, 168, 10, 1);        // Pi acts as gateway
 IPAddress subnet(255, 255, 255, 0);        // Subnet mask
-IPAddress primaryDNS(8, 8, 8, 8);          // Optional
-IPAddress secondaryDNS(8, 8, 4, 4);        // Optional
+
+// Olimex ESP32-PoE Ethernet pins
+#define ETH_CLK_MODE ETH_CLOCK_GPIO17_OUT
+#define ETH_PHY_POWER 12
 
 // Measurement cycle timing
 const unsigned long measurement_interval_ms = 100; // 100ms = 10 readings per second
@@ -72,9 +71,10 @@ const uint8_t SR04_2_ECHO = 32; // Echo pin for sensor 2 (5V input via divider)
 // GLOBAL VARIABLES
 // ============================================
 
-AsyncUDP udp;
+WiFiUDP udp;
 unsigned long last_measurement_time = 0;
 bool eth_connected = false;
+static bool eth_initialized = false; // Prevent re-initialization
 
 // Distance readings in centimeters
 float distance_1_cm = 0.0;
@@ -84,30 +84,33 @@ float distance_2_cm = 0.0;
 // ETH EVENT HANDLERS
 // ============================================
 
-void onEvent(WiFiEvent_t event)
+void WiFiEvent(WiFiEvent_t event)
 {
   switch (event)
   {
   case ARDUINO_EVENT_ETH_START:
     Serial.println("[ETH] Ethernet started");
+    ETH.setHostname("esp32-forklift");
     break;
   case ARDUINO_EVENT_ETH_CONNECTED:
-    Serial.println("[ETH] Ethernet connected");
+    Serial.println("[ETH] Ethernet link connected");
     break;
-  case 2:
+  case ARDUINO_EVENT_ETH_GOT_IP:
     Serial.println("[ETH] Ethernet got IP");
     Serial.print("[ETH] IP: ");
     Serial.println(ETH.localIP());
-    Serial.print("[ETH] Hostname: ");
-    Serial.println(ETH.getHostname());
+    Serial.print("[ETH] Gateway: ");
+    Serial.println(ETH.gatewayIP());
+    Serial.print("[ETH] Subnet: ");
+    Serial.println(ETH.subnetMask());
     eth_connected = true;
     break;
-  case 3:
+  case ARDUINO_EVENT_ETH_LOST_IP:
     Serial.println("[ETH] Ethernet lost IP");
     eth_connected = false;
     break;
   case ARDUINO_EVENT_ETH_DISCONNECTED:
-    Serial.println("[ETH] Ethernet disconnected");
+    Serial.println("[ETH] Ethernet link disconnected");
     eth_connected = false;
     break;
   default:
@@ -191,12 +194,13 @@ void sendUDPPacket(float dist1, float dist2)
   char buffer[64];
   snprintf(buffer, sizeof(buffer), "D1:%.1f,D2:%.1f\n", dist1, dist2);
 
-  // Send via UDP - Parse IP string and send
+  // Send via UDP
   IPAddress targetIP;
   targetIP.fromString(udp_target_ip);
-  udp.writeTo((uint8_t *)buffer, strlen(buffer),
-              targetIP,
-              udp_target_port);
+  
+  udp.beginPacket(targetIP, udp_target_port);
+  udp.write((uint8_t *)buffer, strlen(buffer));
+  udp.endPacket();
 }
 
 // ============================================
@@ -236,7 +240,7 @@ void setup()
   Serial.println("[Sensor] SR04 sensors configured.");
   
   // Register Ethernet event handlers
-  WiFi.onEvent(onEvent);
+  WiFi.onEvent(WiFiEvent);
 
   // Initialize Ethernet with STATIC IP (NO-ROUTER setup)
   Serial.println("[ETH] Starting Ethernet (PoE) with STATIC IP...");
@@ -245,23 +249,28 @@ void setup()
   Serial.print("[ETH] Gateway (Pi): ");
   Serial.println(gateway);
   
-  // Configure static IP BEFORE starting Ethernet
-  if (!ETH.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
-  {
-    Serial.println("[ETH] Static IP configuration failed!");
-  }
-  else
-  {
-    Serial.println("[ETH] Static IP configured successfully");
-  }
-  
-  // Start Ethernet with Olimex ESP32-PoE specific settings
+  // Start Ethernet with Olimex ESP32-PoE specific settings (ONCE ONLY)
   if (!ETH.begin())
   {
     Serial.println("[ETH] Ethernet hardware initialization failed!");
   }
+  else
+  {
+    eth_initialized = true; // Mark as initialized to prevent re-init
+    Serial.println("[ETH] Ethernet hardware started");
+    
+    // Configure static IP AFTER hardware init
+    if (!ETH.config(local_IP, gateway, subnet))
+    {
+      Serial.println("[ETH] Static IP configuration failed!");
+    }
+    else
+    {
+      Serial.println("[ETH] Static IP configured successfully");
+    }
+  }
 
-  // Wait for Ethernet link and connection (up to 15 seconds)
+  // Wait for Ethernet link and connection (up to 20 seconds)
   Serial.println("[ETH] Waiting for link...");
   int eth_wait = 0;
   while (!eth_connected && eth_wait < 200)
@@ -269,7 +278,7 @@ void setup()
     delay(100);
     Serial.print(".");
     eth_wait++;
-    if (eth_wait > 200)
+    if (eth_wait >= 200)
     {
       Serial.println("\n[ETH] Connection timeout!");
       break;
@@ -281,21 +290,12 @@ void setup()
     Serial.println("\n[ETH] Ethernet connected!");
     Serial.print("[ETH] IP: ");
     Serial.println(ETH.localIP());
+    Serial.print("[ETH] Gateway: ");
+    Serial.println(ETH.gatewayIP());
   }
   else
   {
     Serial.println("\n[ETH] Ethernet connection timeout!");
-    Serial.println("[ETH] Retrying in 10 seconds...");
-  }
-
-  // Initialize UDP listener
-  if (udp.listen(5006))
-  {
-    Serial.println("[UDP] Listener started on port 5006");
-  }
-  else
-  {
-    Serial.println("[UDP] Failed to start listener!");
   }
 
   Serial.print("[UDP] Target Pi IP: ");
@@ -352,18 +352,12 @@ void loop()
     }
     else
     {
-      Serial.print("[Sensor] D1: ");
-      Serial.print(distance_1_cm);
-      Serial.print(" cm | D2: ");
-      Serial.print(distance_2_cm);
-      Serial.println(" cm");
-      // Ethernet disconnected, try to reconnect
-      static uint8_t recon_counter = 0;
-      if (++recon_counter >= 100)
-      { // Try every 10 seconds
-        recon_counter = 0;
-        Serial.println("[ETH] Attempting reconnect...");
-        ETH.begin();
+      // Ethernet disconnected - show error
+      static uint8_t err_counter = 0;
+      if (++err_counter >= 10)
+      {
+        err_counter = 0;
+        Serial.println("[ERROR] Ethernet disconnected! Check cable.");
       }
     }
   }
