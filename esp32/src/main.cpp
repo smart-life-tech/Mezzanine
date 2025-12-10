@@ -105,10 +105,6 @@ void WiFiEvent(WiFiEvent_t event)
     Serial.println(ETH.subnetMask());
     eth_connected = true;
     break;
-  case ARDUINO_EVENT_ETH_LOST_IP:
-    Serial.println("[ETH] Ethernet lost IP");
-    eth_connected = false;
-    break;
   case ARDUINO_EVENT_ETH_DISCONNECTED:
     Serial.println("[ETH] Ethernet link disconnected");
     eth_connected = false;
