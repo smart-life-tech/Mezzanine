@@ -207,6 +207,11 @@ void setup()
 {
   // Initialize serial for debugging
   Serial.begin(115200);
+  while (!Serial)
+  {
+    delay(10);
+  }
+  
   delay(1000);
 
   Serial.println("\n\n=== Forklift SR04 UDP System - Olimex ESP32-PoE ===");
@@ -251,7 +256,7 @@ void setup()
   }
   
   // Start Ethernet with Olimex ESP32-PoE specific settings
-  if (!ETH.begin(0, -1, 23, 18, ETH_PHY_LAN8720, ETH_CLOCK_GPIO17_OUT))
+  if (!ETH.begin())
   {
     Serial.println("[ETH] Ethernet hardware initialization failed!");
   }
