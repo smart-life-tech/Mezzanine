@@ -65,6 +65,7 @@ class Config:
             "alert_wav_path": "/home/mark/Mezzanine/raspberrypi/alert.wav",
             "pause_button_gpio": 17,
             "min_interval_between_alerts_sec": 1.0,
+            "audio_output": "usb",  # Options: "usb" or "gpio_pwm"
         }
         
         try:
@@ -97,10 +98,24 @@ class Config:
 class AudioAlert:
     """Manage horn warning audio playback."""
     
-    def __init__(self, wav_path):
+    def __init__(self, wav_path, output_mode="usb"):
+        """
+        Initialize audio alert system.
+        
+        Args:
+            wav_path: Path to WAV file
+            output_mode: "usb" for USB audio adapter, "gpio_pwm" for Pi 5 GPIO 12/13 PWM audio
+        """
         self.wav_path = wav_path
         self.last_alert_time = 0
         self.min_interval = 1.0  # Minimum seconds between alerts
+        self.output_mode = output_mode
+        
+        if self.output_mode == "gpio_pwm":
+            print("[Alert] Using GPIO PWM audio output (GPIO 12/13)")
+            print("[Alert] Ensure /boot/firmware/config.txt has: dtoverlay=pwm-2chan")
+        else:
+            print("[Alert] Using USB audio adapter")
     
     def set_min_interval(self, interval_sec):
         """Set minimum interval between alerts."""
@@ -109,7 +124,17 @@ class AudioAlert:
     def play_alert(self):
         """
         Play horn warning sound.
-        Uses aplay (ALSA) to play WAV file through USB audio adapter.
+        
+        Output modes:
+        - usb: Uses aplay with default sound card (USB audio adapter)
+        - gpio_pwm: Uses aplay with PWM audio on GPIO 12 (Right) / GPIO 13 (Left)
+        
+        For GPIO PWM audio on Pi 5:
+        1. Add to /boot/firmware/config.txt:
+           dtoverlay=pwm-2chan
+        2. Reboot
+        3. Connect amplifier to GPIO 12 (Right channel) or GPIO 13 (Left channel)
+        4. GPIO pins output PWM audio signal (NOT line-level - may need amplification)
         """
         current_time = time.time()
         
@@ -122,17 +147,25 @@ class AudioAlert:
             return False
         
         try:
-            # Use aplay to play the audio file
-            # By default, aplay uses the first available sound card (USB adapter)
+            # Build aplay command based on output mode
+            if self.output_mode == "gpio_pwm":
+                # For GPIO PWM audio, specify the headphones device
+                # On Pi 5 with PWM overlay, this routes to GPIO 12/13
+                cmd = ["aplay", "-D", "plughw:Headphones", self.wav_path]
+            else:
+                # USB audio - use default device (first available sound card)
+                cmd = ["aplay", self.wav_path]
+            
             subprocess.run(
-                ["aplay", self.wav_path],
+                cmd,
                 timeout=10,
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
             self.last_alert_time = current_time
-            print(f"[Alert] Horn triggered at {datetime.now().strftime('%H:%M:%S')}")
+            mode_str = "GPIO PWM" if self.output_mode == "gpio_pwm" else "USB"
+            print(f"[Alert] Horn triggered ({mode_str}) at {datetime.now().strftime('%H:%M:%S')}")
             return True
         except FileNotFoundError:
             print("[Alert] aplay not found. Install alsa-utils: sudo apt install -y alsa-utils")
@@ -340,7 +373,10 @@ class ForkliftAlertSystem:
         
         # Initialize components
         self.listener = UDPListener(self.config.get('udp_listen_port'))
-        self.alert = AudioAlert(self.config.get('alert_wav_path'))
+        self.alert = AudioAlert(
+            self.config.get('alert_wav_path'),
+            output_mode=self.config.get('audio_output', 'usb')
+        )
         self.alert.set_min_interval(self.config.get('min_interval_between_alerts_sec'))
         self.pause_button = PauseButton(self.config.get('pause_button_gpio'))
         
