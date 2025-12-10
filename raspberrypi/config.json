@@ -6,7 +6,7 @@
   "alert_wav_path": "/home/mark/Mezzanine/raspberrypi/alert.wav",
   "pause_button_gpio": 17,
   "min_interval_between_alerts_sec": 1.0,
-  "audio_output": "gpio_pwm",
+  "audio_output": "usb",
   "_comments": {
     "udp_listen_port": "UDP port on which Pi listens for ESP32 distance packets (default 5005)",
     "distance_threshold_cm": "Fork height threshold in cm. Alert triggers when distance < threshold",
