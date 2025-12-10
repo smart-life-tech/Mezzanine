@@ -212,7 +212,7 @@ void setup()
     delay(10);
   }
   
-  delay(1000);
+  delay(10000);
 
   Serial.println("\n\n=== Forklift SR04 UDP System - Olimex ESP32-PoE ===");
   Serial.println("Initializing...");
