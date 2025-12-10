@@ -41,7 +41,7 @@ const char *udp_target_ip = "192.168.10.1"; // Pi IP address
 const uint16_t udp_target_port = 5005;       // UDP port Pi listens on
 
 // Static IP Configuration (NO-ROUTER setup)
-IPAddress local_IP(192, 168, 10, 20);      // ESP32 static IP (change to .21 for board #2)
+IPAddress local_IP(192, 168, 10, 21);      // ESP32 static IP (change to .21 for board #2)
 IPAddress gateway(192, 168, 10, 1);        // Pi acts as gateway
 IPAddress subnet(255, 255, 255, 0);        // Subnet mask
 
