@@ -6,95 +6,132 @@ You can paste this directly into documentation or send to the client.
 
 # 🔧 **Forklift Warning System – Component Layout (MD Format)**
 
-## **📦 Enclosure (Workbench / Raspberry Pi Side)**
+## **📦 Pi Stack (Workbench / Raspberry Pi Side)**
 
-### **Top-Down Internal Layout**
-
-```
-+------------------------------------------------------------+
-|                                                            |
-|   [ 12V FAN + FILTER ]   (top panel)                       |
-|                                                            |
-|  +-------------------+     +-----------------------------+ |
-|  | Raspberry Pi 5    |     |  12V Amplifier (80W)        | |
-|  | + PoE HAT         |     |  (Volume knob facing front) | |
-|  +-------------------+     +-----------------------------+ |
-|                                                            |
-|  +-------------------+                                     |
-|  | Geekworm X1200    |   (UPS under or beside Pi)         |
-|  +-------------------+                                     |
-|                                                            |
-|        [ USB→3.5mm Adapter ]  → Short audio lead → Amp     |
-|                                                            |
-|  [ PoE Splitter for ESP link ]  (rear left of enclosure)   |
-|                                                            |
-|  Cable Routing:                                            |
-|    - Left: Network + PoE entry                             |
-|    - Center: Logic wiring (Pi, UPS)                        |
-|    - Right: 12V wiring (Amp, Fan)                          |
-+------------------------------------------------------------+
-```
-
-### **Front Panel**
+### **Vertical Stack Configuration**
 
 ```
+                    ┌─────────────────────┐
+                    │   12V COOLING FAN   │  ← Top Layer
+                    │   (exhaust upward)  │
+                    ├─────────────────────┤
+                    │                     │
+                    │  RASPBERRY PI 5     │  ← Middle Layer
+                    │  (GPIO facing up)   │
+                    │                     │
+                    ├─────────────────────┤
+                    │   PoE HAT / PSU     │  ← Bottom Layer
+                    │   (power input)     │
+                    └──────────┬──────────┘
+                               │
+                          [Cat6 PoE]
+                               │
+                         PoE Switch
+                      (192.168.10.x)
+
+
+Network Connection:
+  • Single Cat6 cable from PoE switch to Pi stack
+  • Pi static IP: 192.168.10.1/24
+  • No DHCP, no router configuration
+
+Audio Output (configurable in config.json):
+  • Option 1: USB audio adapter → Amplifier/Speaker
+  • Option 2: GPIO 12/13 PWM audio (Pi 5 native)
+  • Option 3: Onboard 3.5mm headphone jack
+
+Control Interface:
+  • GPIO17: Pause button (2 min silence)
+  • J2 header: Soft power button (optional)
+```
+
+### **Control Panel (if using external enclosure)**
+
+```
+Front Panel:
 +--------------------------------------------------+
-|  [ BIG BUTTON – PAUSE ]   [ SMALL BUTTON – POWER ]  |
+|  [ BIG BUTTON – PAUSE ]   [ SMALL BUTTON – POWER ] |
 |                                                    |
-|                 (AMPLIFIER KNOB)                  |
+|        (Optional: Volume control if using amp)     |
 +--------------------------------------------------+
-```
 
-### **Rear Panel**
-
-```
-+--------------------------------------------------+
-|  [ ETH / PoE Jack ]       [ FAN EXHAUST VENTS ]  |
-+--------------------------------------------------+
+Rear/Side Connections:
+  • Cat6 Ethernet jack (to PoE switch)
+  • USB ports (for audio adapter if used)
+  • GPIO header access for pause button
+  • Fan exhaust vents
 ```
 
 ---
 
 ## **📡 Sensor End (Mezzanine / ESP Side) Layout**
 
-### **ESP + Sensor Assembly Layout**
+### **ESP32-PoE + Sensor Assembly**
 
 ```
-+--------------------------------------------+
-|  PoE Splitter (54V→5V)                     |
-|    - Mounted to bracket or wall            |
-|                                            |
-|  ESP32-C6 Board                            |
-|    - Mounted above or beside splitter      |
-|                                            |
-|  SR04 Sensor #1                            |
-|  SR04 Sensor #2 (optional)                 |
-|    - Placed in L-shape orientation         |
-|    - Mounted to steel brackets / L-intons  |
-+--------------------------------------------+
+                    [Cat6 from PoE Switch]
+                              │
+                    ┌─────────▼─────────┐
+                    │  Olimex ESP32-PoE │
+                    │  (Integrated PoE) │
+                    │  192.168.10.20    │
+                    └──────┬───┬────────┘
+                           │   │
+                      3.3V │   │ GND
+                           │   │
+            ┌──────────────┴───┴──────────────┐
+            │                                  │
+       ┌────▼────┐                       ┌────▼────┐
+       │ SR04 #1 │                       │ SR04 #2 │
+       │ (VCC)   │                       │ (VCC)   │
+       │ TRIG←14 │                       │ TRIG←16 │
+       │ ECHO→15 │                       │ ECHO→32 │
+       │ (GND)   │                       │ (GND)   │
+       └─────────┘                       └─────────┘
+
+Mounting:
+  • ESP32-PoE: Wall bracket or mounting plate
+  • Sensors: Steel L-brackets for rigid positioning
+  • NO voltage dividers (all 3.3V direct connections)
+  • Wire length: Keep under 30cm for signal integrity
+  
+Network:
+  • Ethernet-only (no WiFi capability)
+  • Static IP: 192.168.10.20
+  • UDP destination: 192.168.10.1:5005
 ```
 
 ---
 
 ## **📏 Recommended Spacing / Positioning**
 
-### **Inside enclosure:**
+### **Pi Stack Assembly:**
 
-* Pi + PoE HAT on left
-* UPS under or beside Pi
-* Amplifier on right with front access
-* Fan on top or rear
-* Buttons on front panel
-* PoE splitter near Ethernet entry
-* Keep **12V amp area** physically separate from **5V logic area**
-* Use vertical cable channels where possible
+* **Vertical Configuration** (bottom to top):
+  1. Power supply (PoE HAT or dedicated PSU)
+  2. Raspberry Pi 5 board (GPIO header accessible)
+  3. Cooling fan (exhaust upward)
+* **Mounting**: Use standoffs between layers for airflow
+* **Clearance**: 10-15mm between Pi and fan for heat dissipation
+* **Cable Management**: Keep Cat6 and USB cables organized
+* **Stability**: Secure stack to prevent toppling
+
+### **If using external enclosure:**
+
+* Place Pi stack in center or left side
+* Optional amplifier on right side (if using USB audio)
+* Front panel buttons with clean wire routing
+* Rear panel for Ethernet connection and fan exhaust
+* Keep high-voltage/high-current circuits separated from logic
 
 ### **At mezzanine:**
 
-* ESP and splitter kept together
-* Sensors mounted on rigid steel L-brackets
-* Sensors at known fixed angles (forming the L-shape detection area)
-* Cat6 cable secured with strain relief
+* **ESP32-PoE**: Wall-mounted with secure bracket
+* **Sensors**: Rigid steel L-brackets at fixed angles
+* **Sensor Spacing**: 20-30cm apart for coverage area
+* **Wire Runs**: Keep under 30cm, use 22-24 AWG
+* **Cat6 Cable**: Secured with strain relief, away from moving equipment
+* **NO External Components**: All power integrated in ESP32-PoE board
 
 ---
 

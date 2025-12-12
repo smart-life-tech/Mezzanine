@@ -1,14 +1,17 @@
 # Forklift Ultrasonic Warning System – Complete Wiring Schematic
 
 **System Overview:**
-- **Workbench Control Box**: Raspberry Pi 5, PoE HAT, UPS, USB audio adapter, 12V amplifier, horn speaker
-- **Mezzanine Sensor End**: ESP32-PoE, PoE splitter, 2× SR04 ultrasonic sensors, voltage dividers
-- **Network**: Single Cat6 PoE cable connecting both ends
+- **Workbench Pi Stack**: Raspberry Pi 5 + PoE HAT + Fan (vertical stack)
+- **Network**: PoE Switch (NO ROUTER) connecting Pi and ESP32
+- **Mezzanine Sensor End**: Olimex ESP32-PoE + 2× HC-SR04 ultrasonic sensors
+- **Static IPs**: Pi = 192.168.10.1, ESP32 = 192.168.10.20, no DHCP
+- **Audio**: Configurable (USB adapter, GPIO 12/13 PWM, or headphone jack)
 
 **Key Pinouts (GPIO Assignment):**
 - **Pause button**: Raspberry Pi GPIO17 (Pin 11 on GPIO header)
-- **SR04 #1**: TRIG → ESP GPIO14, ECHO → ESP GPIO15 (3.3V logic)
-- **SR04 #2**: TRIG → ESP GPIO16, ECHO → ESP GPIO32 (3.3V logic)
+- **SR04 #1**: TRIG → ESP GPIO14, ECHO → ESP GPIO15 (3.3V direct, no divider)
+- **SR04 #2**: TRIG → ESP GPIO16, ECHO → ESP GPIO32 (3.3V direct, no divider)
+- **Audio**: USB adapter OR GPIO 12/13 OR headphone jack (config.json setting)
 
 ---
 
@@ -19,15 +22,16 @@ This system uses **PoE (Power over Ethernet)** as the primary power backbone, pr
 ### **PoE Power Flow Diagram**
 
 ```
-PoE Injector/Switch (48V PoE)
-              │
-         [Cat6 PoE Cable]
-              │
-      ┌───────┴────────┐
-      │                │
-   PoE HAT         PoE Splitter
- (Workbench)      (Mezzanine)
-      │                │
+               PoE Switch (48V)
+               (NO ROUTER)
+                    │
+         ┌──────────┼──────────┐
+         │           │           │
+    [Cat6 PoE]       │      [Cat6 PoE]
+         │           │           │
+   Pi Stack         │      ESP32-PoE
+  (Workbench)       │     (Mezzanine)
+  192.168.10.1      │    192.168.10.20
    5V/3A            5V/2A
       │                │
    Raspberry Pi    ESP32-PoE
@@ -37,16 +41,22 @@ PoE Injector/Switch (48V PoE)
          (via PoE cable shield)
 ```
 
-### **Workbench Power Distribution**
-- **PoE HAT**: Receives 48V PoE from Cat6, converts to clean 5V/GND for Raspberry Pi
-- **Geekworm X1200 UPS**: Powers via USB-C or 5V header, provides backup during outage
-- **12V Rail**: Separate dedicated 12V PSU (15A, 180W) for amplifier and fan
-  - **Keep 12V circuit physically separated from 5V logic**
+### **Workbench Power Distribution (Pi Stack)**
+- **Pi Stack Configuration:**
+  - **Bottom Layer**: PoE HAT or dedicated power supply
+  - **Middle Layer**: Raspberry Pi 5 board
+  - **Top Layer**: 12V cooling fan
+- **PoE HAT**: Receives 48V PoE from switch, converts to 5V for Pi
+- **Network**: Single Cat6 cable to PoE switch (power + data)
+- **Static IP**: 192.168.10.1/24 configured in /etc/dhcpcd.conf
+- **Audio Options**: USB adapter, GPIO 12/13 PWM, or 3.5mm jack
 
 ### **Mezzanine Power Distribution**
-- **PoE Splitter**: Passive converter, 48V input → 5V (2A) output
-- **5V Rail**: PoE splitter 5V output converted to **3.3V regulator** for ESP32-PoE and SR04 sensors
-- **Common Ground**: All mezzanine circuits tied to splitter GND (PoE cable shield)
+- **Olimex ESP32-PoE**: Integrated PoE (receives 48V directly, no external splitter)
+- **3.3V Rail**: Onboard 3.3V regulator powers ESP32 and HC-SR04 sensors
+- **Static IP**: 192.168.10.20 configured in ESP32 firmware
+- **Common Ground**: All sensors tied to ESP32 GND pin
+- **NO Voltage Dividers**: Sensors powered from 3.3V, ECHO outputs are 3.3V logic
 
 ---
 
@@ -603,10 +613,12 @@ SENSOR ASSEMBLY
 
 ### **Section 4: SR04 #2 Sensor Wiring (if used)**
 
-**Identical to SR04 #1, but:**
+**Identical to SR04 #1, but with different GPIO pins:**
+- **VCC** → **ESP32 3.3V pin** (shared with SR04 #1)
+- **GND** → **ESP32 GND pin** (common ground)
 - **TRIG #2** → **ESP GPIO16** (not GPIO14)
-- **ECHO #2** → **ESP GPIO32** (direct connection, no divider needed)
-                   [1kΩ]
+- **ECHO #2** → **ESP GPIO32** (not GPIO15)
+- **NO voltage dividers** - all 3.3V direct connections
                       │
                      GND
 ```
@@ -626,12 +638,12 @@ SENSOR ASSEMBLY
 | **12V Amp Audio** | — | 3.5mm stereo in | From USB adapter |
 | **12V Amp Speaker** | — | L+/L− to Horn | 16 AWG speaker wire |
 | **12V Fan** | — | +12V (RED), GND (BLACK) | 18 AWG, always-on or switched |
-| **ESP GPIO14** | Output | SR04 #1 TRIG | 3.3V output, direct |
-| **ESP GPIO16** | Output | SR04 #2 TRIG | 3.3V output, direct |
-| **ESP GPIO15** | Input | SR04 #1 ECHO | 3.3V input, direct |
-| **ESP GPIO32** | Input | SR04 #2 ECHO | 3.3V input, direct |
-| **SR04 #1 VCC** | — | 3.3V rail (from regulator) | Shared with SR04 #2 |
-| **SR04 #1 GND** | — | GND rail (splitter) | Shared with SR04 #2 |
+| **ESP GPIO14** | Output | SR04 #1 TRIG | 3.3V output, direct (no resistors) |
+| **ESP GPIO16** | Output | SR04 #2 TRIG | 3.3V output, direct (no resistors) |
+| **ESP GPIO15** | Input | SR04 #1 ECHO | 3.3V input, direct (NO voltage divider) |
+| **ESP GPIO32** | Input | SR04 #2 ECHO | 3.3V input, direct (NO voltage divider) |
+| **SR04 #1 VCC** | — | ESP32 3.3V pin | Shared with SR04 #2 |
+| **SR04 #1 GND** | — | ESP32 GND pin | Common ground (shared) |
 
 ---
 
@@ -639,7 +651,7 @@ SENSOR ASSEMBLY
 
 | Problem | Most Likely Cause | Quick Fix |
 |---------|-------------------|-----------|
-| **No UDP data reaching Pi** | WiFi not connected | Check SSID/password in ESP code, verify Pi IP |
+| **No UDP data reaching Pi** | Ethernet not connected | Check static IP: Pi=192.168.10.1, ESP=192.168.10.20, run tcpdump on Pi |
 | **Intermittent distance readings** | Loose solder joint | Re-solder all GPIO and divider connections |
 | **5V reading on ESP GPIO15/32** | ECHO pin not connected | Verify SR04 ECHO wire firmly connected to GPIO pin |
 | **Horn not making sound** | USB audio not detected | Run `aplay -L`, check alsamixer volume |

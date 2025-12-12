@@ -14,43 +14,62 @@ The entire system is housed in a structured, well-laid-out control enclosure at 
 
 ### 🔋 **Power Architecture**
 
-Both the **Raspberry Pi 5** and the **ESP32 module** are powered entirely from **PoE lines**, ensuring a clean, centralized power distribution:
+Both the **Raspberry Pi 5** and the **ESP32-PoE module** are powered entirely from **PoE infrastructure**, with a **PoE switch** providing centralized power distribution:
 
-- **Workbench (Pi Side):** The Raspberry Pi 5 receives power through its **PoE HAT**, which extracts 48V+ from the Cat6 PoE cable and provides clean 5V to the Pi. The **Geekworm X1200 UPS** board supplies backup power during outages and maintains the system RTC.
+- **Network Topology:** Pi 5 ↔ PoE Switch ↔ ESP32-PoE (NO ROUTER)
 
-- **Mezzanine (ESP Side):** A **PoE splitter** (48V → 5V) with **3.3V regulator** provides **3.3V for the ESP32-PoE** controller and **3.3V for both SR04 ultrasonic sensors**. This eliminates the need for separate power supplies at the mezzanine.
+- **Pi Stack (Workbench):** The Pi is configured as a vertical stack:
+  - **Bottom:** Power supply (PoE HAT or dedicated PSU)
+  - **Middle:** Raspberry Pi 5 board
+  - **Top:** Cooling fan (12V)
+  - The stack connects to PoE switch via single Cat6 cable
 
-- **Common Ground:** All components (Pi, ESP, sensors, 12V amp) share a **common ground via the PoE network**, ensuring signal integrity and safe operation.
+- **Mezzanine (ESP Side):** **Olimex ESP32-PoE** board with integrated Ethernet and PoE receives power directly from PoE switch via Cat6 cable. A **3.3V regulator** on the ESP32-PoE board provides **3.3V for both HC-SR04 ultrasonic sensors**.
 
-- **12V Amplifier:** Powered from a dedicated **12V rail** inside the enclosure (can be from a secondary PSU or 12V converter), feeding the horn speaker at full volume.
+- **Network Configuration:** Static IPs (NO DHCP, NO ROUTER):
+  - Pi: 192.168.10.1/24
+  - ESP32 #1: 192.168.10.20
+  - ESP32 #2: 192.168.10.21 (future)
+  - Communication: UDP port 5005
 
-- **System Fan:** The **12V cooling fan** runs from the same 12V rail, keeping the enclosure cool during continuous operation.
+- **Common Ground:** All components (Pi, ESP, sensors) share **common ground via PoE network**, ensuring signal integrity.
+
+- **Audio Output:** Configurable in config.json:
+  - USB audio adapter → Amplifier → Horn speaker
+  - GPIO 12/13 PWM audio (Pi 5 native)
+  - Onboard 3.5mm headphone jack
 
 ---
 
 ## 📦 System Components
 
-### **Raspberry Pi (Control Box – Workbench Side)**
+### **Raspberry Pi Stack (Workbench Side)**
 
-* Raspberry Pi 5
-* PoE HAT (for Pi power + network)
-* Geekworm X1200 UPS + RTC battery
-* USB → 3.5mm audio adapter
-* 12V / 80W amplifier
-* Horn speaker
-* Big momentary pause button (2 min pause)
-* Small J2 soft-power button
-* 12V fan + dust filter
-* PoE splitter (for ESP downlink)
-* Cat6 network input
+* **Pi Stack Components:**
+  - Raspberry Pi 5 board
+  - PoE HAT (power from switch)
+  - 12V cooling fan (top mount)
+  - Stack mounting hardware
+* **Network:** Cat6 to PoE switch (static IP: 192.168.10.1)
+* **Audio Output:** (configurable in config.json)
+  - Option 1: USB → 3.5mm audio adapter → Amplifier/Speaker
+  - Option 2: GPIO 12/13 PWM audio (Pi 5 native)
+  - Option 3: Onboard 3.5mm headphone jack
+* **Controls:**
+  - GPIO17: Pause button (momentary, 2 min pause)
+  - J2 header: Soft-power button (optional)
 
-### **ESP Side (Mezzanine – Sensor End)**
+### **ESP32-PoE Side (Mezzanine – Sensor End)**
 
-* ESP32-PoE module (Olimex, Ethernet-based, PoE-powered)
-* One or two HC-SR04 ultrasonic sensors
-* 54V → 5V PoE splitter
-* Cat6 PoE uplink from Pi
-* Steel L-brackets (sensor mounting)
+* **Olimex ESP32-PoE** (Ethernet-only, no WiFi)
+  - Integrated LAN8720 PHY
+  - Static IP: 192.168.10.20
+  - Powered via PoE from switch
+* **Sensors:** 1-2× HC-SR04 ultrasonic sensors
+  - Powered from ESP32's 3.3V rail (NO voltage dividers needed)
+  - GPIO: 14, 15, 16, 32
+* **Network:** Cat6 from PoE switch
+* **Mounting:** Steel L-brackets for rigid sensor positioning
 
 ---
 
@@ -59,16 +78,24 @@ Both the **Raspberry Pi 5** and the **ESP32 module** are powered entirely from *
 ### **Complete Data and Power Flow**
 
 ```
-MEZZANINE END                                     WORKBENCH END
-(Sensor & Detection)                             (Control & Alerting)
+MEZZANINE END                    PoE SWITCH              WORKBENCH END
+(Sensor & Detection)             (NO ROUTER)            (Control & Alerting)
 
-    SR04 Sensors                                 Raspberry Pi 5
-         │                                            │
-         ├─ TRIG/ECHO ───────→ ESP32-PoE               ├─ PoE HAT
-         │                        │                  │
-         └─ 5V/GND ──────→ PoE Splitter ────────────┘
-                           (5V & 5V)                 (PoE)
-                               │                      │
+    SR04 Sensors                                         Pi Stack
+         │                                               ┌─────────┐
+         ├─ TRIG (GPIO14/16) ──┐                        │   Fan   │ (Top)
+         ├─ ECHO (GPIO15/32) ──┤                        ├─────────┤
+         └─ 3.3V/GND ──┐        │                       │   Pi 5  │ (Middle)
+                       │        │                       ├─────────┤
+                  ESP32-PoE ←───┼──────────────────────→│ PoE PSU │ (Bottom)
+                  (Olimex)      │     Cat6 PoE          └─────────┘
+                192.168.10.20   │                      192.168.10.1
+                       │        │                           │
+                       └────────┴───── PoE Switch ─────────┘
+                                      (48V Power)
+                                   
+    Power: 3.3V from ESP32          Network: UDP port 5005     Audio: USB/GPIO/Jack
+    Data: UDP packets              Static IPs (no DHCP)         Control: GPIO17
                                └──── CAT6 ────────────┘
                                (Data + Power)
 
@@ -322,18 +349,20 @@ alsamixer
 #### Verify Network & UDP
 
 ```bash
-# Check Pi IP
-ip addr show
+# Check Pi IP (should be 192.168.10.1)
+ip addr show eth0
 
 # Verify UDP port open and listening
 sudo netstat -tuln | grep 5005
 
-# Test from ESP: Send UDP packet to Pi
-# (Manual test from development machine)
+# Monitor incoming UDP packets
+sudo tcpdump -i eth0 -n udp port 5005
+
+# Test from development machine (manual UDP send)
 python3 -c "
 import socket
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.sendto(b'D1:45.5,D2:60.2\n', ('192.168.1.100', 5005))
+s.sendto(b'D1:45.5,D2:60.2\n', ('192.168.10.1', 5005))
 "
 ```
 
@@ -353,7 +382,8 @@ Edit `/home/pi/forklift/config.json` to customize system behavior:
   "pause_duration_seconds": 120,
   "alert_wav_path": "/home/pi/forklift/alert.wav",
   "pause_button_gpio": 17,
-  "min_interval_between_alerts_sec": 1.0
+  "min_interval_between_alerts_sec": 1.0,
+  "audio_output": "usb"
 }
 ```
 
@@ -367,6 +397,7 @@ Edit `/home/pi/forklift/config.json` to customize system behavior:
 | `alert_wav_path` | `/home/pi/forklift/alert.wav` | Full path to horn warning audio file |
 | `pause_button_gpio` | 17 | BCM GPIO pin number for pause button input |
 | `min_interval_between_alerts_sec` | 1.0 | Minimum seconds between consecutive alerts (prevents spam) |
+| `audio_output` | "usb" | Audio output: "usb" (USB adapter), "gpio_pwm" (GPIO 12/13), "headphone_jack" (3.5mm jack) |
 
 #### Tuning Tips
 
@@ -380,32 +411,45 @@ Edit `/home/pi/forklift/config.json` to customize system behavior:
 
 - **GPIO Pin**: If modifying button wiring, update this value. Standard: GPIO17.
 
-### **ESP32 Configuration** (`src/main.cpp`)
+### **ESP32-PoE Configuration** (`src/main.cpp`)
 
-Edit the configuration section to match your environment:
+Edit the configuration section for NO-ROUTER static IP setup:
 
 ```cpp
-// WiFi credentials
-const char* ssid = "YOUR_SSID";                    
-const char* password = "YOUR_PASSWORD";            
-
 // Raspberry Pi UDP target
-const char* udp_target_ip = "192.168.1.100";      // Your Pi IP
-const uint16_t udp_target_port = 5005;             
+const char *udp_target_ip = "192.168.10.1";       // Pi static IP
+const uint16_t udp_target_port = 5005;            // UDP port
+
+// Static IP Configuration (NO-ROUTER setup)
+IPAddress local_IP(192, 168, 10, 20);             // ESP32 static IP (change to .21 for board #2)
+IPAddress gateway(192, 168, 10, 1);               // Pi acts as gateway
+IPAddress subnet(255, 255, 255, 0);               // Subnet mask
+
+// Olimex ESP32-PoE Ethernet pins
+#define ETH_CLK_MODE ETH_CLOCK_GPIO17_OUT
+#define ETH_PHY_POWER 12
 
 // Measurement cycle timing
 const unsigned long measurement_interval_ms = 100; // 10 readings/sec
 
 // Sensor configuration
 const uint8_t num_sensors = 2;                     // 1 or 2 sensors
+
+// GPIO PIN DEFINITIONS
+const uint8_t SR04_1_TRIG = 14;                   // Trigger pin for sensor 1
+const uint8_t SR04_1_ECHO = 15;                   // Echo pin for sensor 1
+const uint8_t SR04_2_TRIG = 16;                   // Trigger pin for sensor 2
+const uint8_t SR04_2_ECHO = 32;                   // Echo pin for sensor 2
 ```
 
 #### Key Settings
 
-- **WiFi SSID/Password**: Must match your network
-- **Pi IP Address**: Update to your Raspberry Pi's actual IP (e.g., `192.168.1.100`)
+- **Network**: Ethernet-only (NO WiFi) via Olimex ESP32-PoE
+- **Static IPs**: Pi = 192.168.10.1, ESP32 = 192.168.10.20 (no DHCP/router)
+- **Pi IP Address**: Must be `192.168.10.1` to match NO-ROUTER setup
 - **Measurement Interval**: 100 ms = 10 measurements per second (standard)
 - **Number of Sensors**: Set to `1` if using only sensor #1, or `2` for dual sensors
+- **GPIO Pins**: 14, 15, 16, 32 (updated from original 2, 4, 5, 6)
 
 ---
 
