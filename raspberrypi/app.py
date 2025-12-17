@@ -304,6 +304,8 @@ class UDPListener:
         self.latest_distance_1 = 0.0
         self.latest_distance_2 = 0.0
         self.last_update_time = 0
+        self.source_ip = None
+        self.source_port = None
     
     def start(self):
         """Start listening for UDP packets."""
@@ -337,8 +339,12 @@ class UDPListener:
                 data, addr = self.socket.recvfrom(1024)
                 self.last_update_time = time.time()
                 
-                # Log source IP when it changes (helpful for NO-ROUTER debugging)
+                # Store source IP and port for status display
                 source_ip = addr[0]
+                self.source_ip = source_ip
+                self.source_port = addr[1]
+                
+                # Log source IP when it changes (helpful for NO-ROUTER debugging)
                 if source_ip != last_source_ip:
                     #print(f"[UDP] Receiving from ESP32 at {source_ip}:{addr[1]}")
                     last_source_ip = source_ip
@@ -382,6 +388,10 @@ class UDPListener:
     def is_data_fresh(self, timeout_sec=2.0):
         """Check if we've received data recently."""
         return (time.time() - self.last_update_time) < timeout_sec
+    
+    def get_source_info(self):
+        """Get ESP32 source IP and port."""
+        return self.source_ip, self.source_port
 
 
 # ============================================
@@ -486,7 +496,12 @@ class ForkliftAlertSystem:
                     status = "[ALERT]" if self.alert_triggered else "[OK]"
                     pause_status = " [PAUSED]" if is_paused else ""
                     data_status = " [Data OK]" if self.listener.is_data_fresh() else " [Data STALE]"
-                    print(f"{status} D1={dist1:6.1f}cm D2={dist2:6.1f}cm Min={min_distance:6.1f}cm{pause_status}{data_status}")
+                    
+                    # Get ESP32 source info
+                    source_ip, source_port = self.listener.get_source_info()
+                    source_info = f" ESP32: {source_ip}:{source_port}" if source_ip else " ESP32: N/A"
+                    
+                    print(f"{status} D1={dist1:6.1f}cm D2={dist2:6.1f}cm Min={min_distance:6.1f}cm{pause_status}{data_status}{source_info}")
                 
                 # Small sleep to prevent CPU spin
                 time.sleep(0.1)
