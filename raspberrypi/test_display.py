@@ -9,10 +9,12 @@ Hardware Connection (SPI):
   - SCL  → GPIO 11 (SPI0 SCLK)
   - SDA  → GPIO 10 (SPI0 MOSI)
   - SDO  → GPIO 9  (SPI0 MISO, often unused on displays)
-  - CS   → GPIO 8  (SPI0 CE0)
+  - CS   → GPIO 22 (Chip Select - using GPIO pin instead of hardware CE0)
   - DC   → GPIO 25 (Data/Command)
   - RST  → GPIO 24 (Reset)
   - BLK  → 3.3V or 5V (Backlight, direct connection)
+
+Note: We use GPIO 22 for CS instead of GPIO 8 (CE0) to avoid conflicts with SPI subsystem.
 
 Installation:
   sudo pip3 install adafruit-circuitpython-rgb-display pillow
@@ -50,7 +52,7 @@ except ImportError:
 # ==============================================
 
 # Pin Configuration (BCM numbering)
-CS_PIN = board.CE0                               # GPIO 8 (SPI0 CE0) - pass as board pin, not DigitalInOut
+CS_PIN = digitalio.DigitalInOut(board.D22)      # GPIO 22 (Chip Select - software controlled)
 DC_PIN = digitalio.DigitalInOut(board.D25)      # GPIO 25 (Data/Command)
 RESET_PIN = digitalio.DigitalInOut(board.D24)   # GPIO 24 (Reset)
 BACKLIGHT_PIN = None  # Connect LED directly to 3.3V or 5V
