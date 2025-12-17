@@ -434,7 +434,6 @@ class ForkliftAlertSystem:
         # Register signal handlers for clean shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
-        self.alert.play_alert()
     
     def _signal_handler(self, signum, frame):
         """Handle Ctrl-C and kill signals for clean shutdown."""
@@ -480,13 +479,16 @@ class ForkliftAlertSystem:
                     is_paused = True
                 
                 # Check threshold and trigger alert
-                if (not is_paused and 
-                    min_distance > 0 and 
-                    min_distance < self.config.get('distance_threshold_cm')):
-                    
-                    if not self.alert_triggered:
+                # Alert when distance is BELOW threshold (something is too close)
+                threshold = self.config.get('distance_threshold_cm')
+                should_alert = (not is_paused and 
+                               min_distance > 0 and 
+                               min_distance < threshold)
+                
+                if should_alert:
+                    # Trigger alert (play_alert handles its own throttling)
+                    if self.alert.play_alert():
                         self.alert_triggered = True
-                        self.alert.play_alert()
                 else:
                     self.alert_triggered = False
                 
