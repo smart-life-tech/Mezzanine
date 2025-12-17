@@ -65,7 +65,7 @@ class Config:
             "alert_wav_path": "/home/mark/Mezzanine/raspberrypi/alert.wav",
             "pause_button_gpio": 17,
             "min_interval_between_alerts_sec": 1.0,
-            "audio_output": "usb",  # Options: "usb", "gpio_pwm", or "headphone_jack"
+            "audio_output": "usb",  # Options: "usb", "gpio_pwm", "headphone_jack", or "hdmi"
         }
         
         try:
@@ -106,7 +106,8 @@ class AudioAlert:
             wav_path: Path to WAV file
             output_mode: "usb" for USB audio adapter, 
                         "gpio_pwm" for Pi 5 GPIO 12/13 PWM audio,
-                        "headphone_jack" for onboard 3.5mm jack/speaker
+                        "headphone_jack" for onboard 3.5mm jack/speaker,
+                        "hdmi" for HDMI audio output
         """
         self.wav_path = wav_path
         self.last_alert_time = 0
@@ -118,6 +119,14 @@ class AudioAlert:
             print("[Alert] Ensure /boot/firmware/config.txt has: dtoverlay=pwm-2chan")
         elif self.output_mode == "headphone_jack":
             print("[Alert] Using onboard headphone jack/speaker")
+        elif self.output_mode == "hdmi":
+            print("[Alert] Using HDMI audio output")
+            print("[Alert] If audio not working:")
+            print("[Alert]   1. Uninstall pulseaudio: sudo apt remove pulseaudio")
+            print("[Alert]   2. Edit /boot/firmware/config.txt: sudo nano /boot/firmware/config.txt")
+            print("[Alert]   3. Add: hdmi_drive=2 (forces HDMI audio)")
+            print("[Alert]   4. Optional: Add dtoverlay=vc4-kms-v3d and disable_fw_kms_setup=1")
+            print("[Alert]   5. Reboot: sudo reboot")
         else:
             print("[Alert] Using USB audio adapter")
     
@@ -160,6 +169,11 @@ class AudioAlert:
                 # For onboard 3.5mm jack/speaker - use the Headphones device
                 # This is the built-in audio output on Raspberry Pi
                 cmd = ["aplay", "-D", "plughw:Headphones", self.wav_path]
+            elif self.output_mode == "hdmi":
+                # For HDMI audio output
+                # Use HDMI device (card 0 or 1 depending on system)
+                # Try HDMI 0 first, most common on Pi 5
+                cmd = ["aplay", "-D", "plughw:CARD=vc4hdmi0", self.wav_path]
             else:
                 # USB audio - use default device (first available sound card)
                 cmd = ["aplay", self.wav_path]
@@ -177,6 +191,7 @@ class AudioAlert:
             mode_names = {
                 "gpio_pwm": "GPIO PWM",
                 "headphone_jack": "Headphone Jack",
+                "hdmi": "HDMI",
                 "usb": "USB"
             }
             mode_str = mode_names.get(self.output_mode, "USB")
