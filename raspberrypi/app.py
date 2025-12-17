@@ -54,6 +54,7 @@ class Config:
     
     def __init__(self, config_path="/home/mark/Mezzanine/raspberrypi/config.json"):
         self.config_path = config_path
+        self.last_mtime = 0
         self.data = self._load_config()
     
     def _load_config(self):
@@ -70,6 +71,9 @@ class Config:
         
         try:
             if os.path.exists(self.config_path):
+                # Track file modification time
+                self.last_mtime = os.path.getmtime(self.config_path)
+                
                 with open(self.config_path, 'r') as f:
                     loaded = json.load(f)
                     defaults.update(loaded)
@@ -86,6 +90,21 @@ class Config:
     def get(self, key, default=None):
         """Get config value."""
         return self.data.get(key, default)
+    
+    def check_and_reload(self):
+        """Check if config file has been modified and reload if needed."""
+        try:
+            if not os.path.exists(self.config_path):
+                return False
+            
+            current_mtime = os.path.getmtime(self.config_path)
+            if current_mtime > self.last_mtime:
+                print(f"[Config] File modified, reloading...")
+                self.data = self._load_config()
+                return True
+        except Exception as e:
+            print(f"[Config] Error checking for updates: {e}")
+        return False
     
     def __repr__(self):
         return json.dumps(self.data, indent=2)
@@ -456,10 +475,18 @@ class ForkliftAlertSystem:
         Main loop: monitor distances and trigger alerts.
         """
         last_status_time = 0
+        last_config_check = 0
         
         while self.running:
             try:
                 current_time = time.time()
+                
+                # Check for config file changes every 5 seconds
+                if current_time - last_config_check >= 5.0:
+                    last_config_check = current_time
+                    if self.config.check_and_reload():
+                        # Update alert min interval if config changed
+                        self.alert.set_min_interval(self.config.get('min_interval_between_alerts_sec'))
                 
                 # Get latest sensor data
                 dist1, dist2 = self.listener.get_distances()
