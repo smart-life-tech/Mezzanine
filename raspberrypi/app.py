@@ -430,6 +430,7 @@ class ForkliftAlertSystem:
         self.running = True
         self.alert_triggered = False
         self.startup_time = time.time()
+        self.consecutive_below_threshold = 0  # Track consecutive readings below threshold
         
         # Register signal handlers for clean shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -486,10 +487,19 @@ class ForkliftAlertSystem:
                 
                 # Check threshold and trigger alert
                 # Alert when distance is BELOW threshold (something is too close)
+                # Require 3 consecutive readings below threshold to prevent false alarms
                 threshold = self.config.get('distance_threshold_cm')
+                is_below_threshold = (min_distance > 0 and min_distance < threshold)
+                
+                if is_below_threshold:
+                    self.consecutive_below_threshold += 1
+                else:
+                    self.consecutive_below_threshold = 0
+                    self.alert_triggered = False
+                
+                # Only trigger alert after 3 consecutive readings below threshold
                 should_alert = (not is_paused and 
-                               min_distance > 0 and 
-                               min_distance < threshold)
+                               self.consecutive_below_threshold >= 3)
                 
                 if should_alert:
                     # Trigger alert (play_alert handles its own throttling)
@@ -499,8 +509,6 @@ class ForkliftAlertSystem:
                         source_ip, source_port = self.listener.get_source_info()
                         if source_ip:
                             print(f"[Alert] TRIGGERED BY ESP32: {source_ip}:{source_port} - Distance: {min_distance:.1f}cm (Threshold: {threshold}cm)")
-                else:
-                    self.alert_triggered = False
                 
                 # Print status every 5 seconds
                 if current_time - last_status_time >= 5.0:
