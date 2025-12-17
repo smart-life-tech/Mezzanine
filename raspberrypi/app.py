@@ -170,21 +170,27 @@ class AudioAlert:
                 # This is the built-in audio output on Raspberry Pi
                 cmd = ["aplay", "-D", "plughw:Headphones", self.wav_path]
             elif self.output_mode == "hdmi":
-                # For HDMI audio output
-                # Use HDMI device (card 0 or 1 depending on system)
-                # Try HDMI 0 first, most common on Pi 5
-                cmd = ["aplay", "-D", "plughw:CARD=vc4hdmi0", self.wav_path]
+                # For HDMI audio output - try multiple approaches for compatibility
+                # Method 1: Use simple hdmi device (usually works best)
+                cmd = ["aplay", "-D", "hdmi", self.wav_path]
+                # Alternative if above fails: cmd = ["aplay", "-D", "hw:CARD=vc4hdmi0", self.wav_path]
             else:
-                # USB audio - use default device (first available sound card)
-                cmd = ["aplay", self.wav_path]
+                # USB audio - use card 1, device 0 (AB13X USB Audio)
+                cmd = ["aplay", "-D", "plughw:1,0", self.wav_path]
             
-            subprocess.run(
+            # Run command and capture output for debugging
+            result = subprocess.run(
                 cmd,
                 timeout=10,
                 check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                capture_output=True,
+                text=True
             )
+            
+            # Log any errors (for debugging audio issues)
+            if result.returncode != 0 and result.stderr:
+                print(f"[Alert] Audio playback warning: {result.stderr.strip()}")
+            
             self.last_alert_time = current_time
             
             # Set display name for mode
