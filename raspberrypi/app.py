@@ -334,7 +334,7 @@ class UDPListener:
                 # Log source IP when it changes (helpful for NO-ROUTER debugging)
                 source_ip = addr[0]
                 if source_ip != last_source_ip:
-                    print(f"[UDP] Receiving from ESP32 at {source_ip}:{addr[1]}")
+                    #print(f"[UDP] Receiving from ESP32 at {source_ip}:{addr[1]}")
                     last_source_ip = source_ip
                 
                 # Parse packet: "D1:xxx.x,D2:yyy.y\n"
