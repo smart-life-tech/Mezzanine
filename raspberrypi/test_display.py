@@ -8,10 +8,11 @@ Hardware Connection (SPI):
   - GND  → GND
   - SCL  → GPIO 11 (SPI0 SCLK)
   - SDA  → GPIO 10 (SPI0 MOSI)
-  - RES  → GPIO 25 (Reset)
-  - DC   → GPIO 24 (Data/Command)
-  - CS   → GPIO 8  (SPI0 CE0) or GPIO 7 (SPI0 CE1)
-  - BLK  → GPIO 23 (Backlight, optional)
+  - SDO  → GPIO 9  (SPI0 MISO, often unused on displays)
+  - CS   → GPIO 8  (SPI0 CE0)
+  - DC   → GPIO 25 (Data/Command)
+  - RST  → GPIO 24 (Reset)
+  - BLK  → 3.3V or 5V (Backlight, direct connection)
 
 Installation:
   sudo pip3 install adafruit-circuitpython-rgb-display pillow
@@ -50,9 +51,9 @@ except ImportError:
 
 # Pin Configuration (BCM numbering)
 CS_PIN = digitalio.DigitalInOut(board.CE0)      # GPIO 8 (SPI0 CE0)
-DC_PIN = digitalio.DigitalInOut(board.D24)      # GPIO 24
-RESET_PIN = digitalio.DigitalInOut(board.D25)   # GPIO 25
-BACKLIGHT_PIN = 23  # GPIO 23 (if your display has backlight control)
+DC_PIN = digitalio.DigitalInOut(board.D25)      # GPIO 25 (Data/Command)
+RESET_PIN = digitalio.DigitalInOut(board.D24)   # GPIO 24 (Reset)
+BACKLIGHT_PIN = None  # Connect LED directly to 3.3V or 5V
 
 # Display Selection - UNCOMMENT THE ONE YOU HAVE
 DISPLAY_TYPE = "ST7735_128x128"   # 1.44" square display
