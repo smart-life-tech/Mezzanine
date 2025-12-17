@@ -490,7 +490,7 @@ class ForkliftAlertSystem:
                 should_alert = (not is_paused and 
                                min_distance > 0 and 
                                min_distance < threshold)
-                
+                print(should_alert, min_distance, threshold)
                 if should_alert:
                     # Trigger alert (play_alert handles its own throttling)
                     if self.alert.play_alert():
