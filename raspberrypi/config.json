@@ -1,7 +1,7 @@
 {
   "description": "Forklift Ultrasonic Warning System - Configuration",
   "udp_listen_port": 5005,
-  "distance_threshold_cm": 80,
+  "distance_threshold_cm": 50,
   "pause_duration_seconds": 120,
   "alert_wav_path": "/home/mark/Mezzanine/raspberrypi/alert_stereo.wav",
   "pause_button_gpio": 17,

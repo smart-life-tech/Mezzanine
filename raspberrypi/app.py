@@ -490,11 +490,15 @@ class ForkliftAlertSystem:
                 should_alert = (not is_paused and 
                                min_distance > 0 and 
                                min_distance < threshold)
-                print(should_alert, min_distance, threshold)
+                
                 if should_alert:
                     # Trigger alert (play_alert handles its own throttling)
                     if self.alert.play_alert():
                         self.alert_triggered = True
+                        # Print which ESP32 triggered the alert
+                        source_ip, source_port = self.listener.get_source_info()
+                        if source_ip:
+                            print(f"[Alert] TRIGGERED BY ESP32: {source_ip}:{source_port} - Distance: {min_distance:.1f}cm (Threshold: {threshold}cm)")
                 else:
                     self.alert_triggered = False
                 
