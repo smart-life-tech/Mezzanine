@@ -465,9 +465,15 @@ class ForkliftAlertSystem:
                 dist1, dist2 = self.listener.get_distances()
                 
                 # Use minimum distance (either sensor can trigger alert)
-                min_distance = dist1
-                if dist2 > 0:  # If second sensor is active
-                    min_distance = min(dist1, dist2)
+                # Ignore negative values (sensor errors)
+                valid_distances = []
+                if dist1 > 0:
+                    valid_distances.append(dist1)
+                if dist2 > 0:
+                    valid_distances.append(dist2)
+                
+                # Use minimum of valid distances, or 0 if none are valid
+                min_distance = min(valid_distances) if valid_distances else 0
                 
                 # Check pause status and button state
                 is_paused = self.pause_button.is_paused()
