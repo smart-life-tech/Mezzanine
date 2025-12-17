@@ -50,12 +50,10 @@ except ImportError:
 # ==============================================
 
 # Pin Configuration (BCM numbering)
-# CS pin will be handled automatically by SPI (GPIO 8)
+CS_PIN = board.CE0                               # GPIO 8 (SPI0 CE0) - pass as board pin, not DigitalInOut
 DC_PIN = digitalio.DigitalInOut(board.D25)      # GPIO 25 (Data/Command)
 RESET_PIN = digitalio.DigitalInOut(board.D24)   # GPIO 24 (Reset)
 BACKLIGHT_PIN = None  # Connect LED directly to 3.3V or 5V
-
-# Note: CS_PIN is omitted - SPI library will use hardware CE0 (GPIO 8) automatically
 
 # Display Selection - UNCOMMENT THE ONE YOU HAVE
 DISPLAY_TYPE = "ST7735_128x128"   # 1.44" square display
@@ -94,7 +92,7 @@ def init_display():
     if DISPLAY_TYPE == "ST7735_128x128":
         # 1.44" 128x128 display
         disp = st7735.ST7735R(
-            spi, dc=DC_PIN, rst=RESET_PIN,
+            spi, cs=CS_PIN, dc=DC_PIN, rst=RESET_PIN,
             width=128, height=128,
             x_offset=2, y_offset=1,  # May need adjustment
             rotation=ROTATION,
@@ -104,7 +102,7 @@ def init_display():
     elif DISPLAY_TYPE == "ST7735_128x160":
         # 1.8" 128x160 display
         disp = st7735.ST7735R(
-            spi, dc=DC_PIN, rst=RESET_PIN,
+            spi, cs=CS_PIN, dc=DC_PIN, rst=RESET_PIN,
             width=128, height=160,
             x_offset=0, y_offset=0,
             rotation=ROTATION,
@@ -114,7 +112,7 @@ def init_display():
     elif DISPLAY_TYPE == "ILI9341_240x320":
         # 2.4", 2.8", 3.2" 240x320 display
         disp = ili9341.ILI9341(
-            spi, dc=DC_PIN, rst=RESET_PIN,
+            spi, cs=CS_PIN, dc=DC_PIN, rst=RESET_PIN,
             width=240, height=320,
             rotation=ROTATION,
             baudrate=24000000
@@ -123,7 +121,7 @@ def init_display():
     elif DISPLAY_TYPE == "ST7789_240x240":
         # 2.0" 240x240 display
         disp = st7789.ST7789(
-            spi, dc=DC_PIN, rst=RESET_PIN,
+            spi, cs=CS_PIN, dc=DC_PIN, rst=RESET_PIN,
             width=240, height=240,
             x_offset=0, y_offset=80,
             rotation=ROTATION,
