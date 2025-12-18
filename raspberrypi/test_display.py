@@ -58,9 +58,9 @@ RESET_PIN = digitalio.DigitalInOut(board.D24)   # GPIO 24 (Reset)
 BACKLIGHT_PIN = None  # Connect LED directly to 3.3V or 5V
 
 # Display Selection - UNCOMMENT THE ONE YOU HAVE
-DISPLAY_TYPE = "ST7735_128x128"   # 1.44" square display
+# DISPLAY_TYPE = "ST7735_128x128"   # 1.44" square display
 # DISPLAY_TYPE = "ST7735_128x160"   # 1.8" rectangular display
-# DISPLAY_TYPE = "ILI9341_240x320"  # 2.4", 2.8", 3.2" displays
+DISPLAY_TYPE = "ILI9341_240x320"  # 2.4", 2.8", 3.2" displays
 # DISPLAY_TYPE = "ST7789_240x240"   # 2.0" square display
 
 # Display rotation (0, 90, 180, 270)
